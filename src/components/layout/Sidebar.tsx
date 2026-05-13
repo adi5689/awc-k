@@ -11,7 +11,7 @@ import { useTranslation } from '../../hooks/useTranslation';
 import {
   LayoutDashboard, Users, Brain, BookOpen, Activity,
   Map, Settings, ChevronLeft, ChevronRight, ChevronDown,
-  LogOut, Sparkles, ClipboardList, PenTool, HeartPulse, Syringe, CalendarDays, FileBarChart2, AlertCircle, WifiOff, Lightbulb
+  LogOut, Sparkles, ClipboardList, PenTool, HeartPulse, Syringe, CalendarDays, FileBarChart2, AlertCircle, WifiOff, Lightbulb, BrainCircuit, Route
 } from 'lucide-react';
 
 const workerNavGroups = [
@@ -25,6 +25,7 @@ const workerNavGroups = [
     collapsible: true,
     items: [
       { name: 'All Children', icon: Users, path: '/worker/children' },
+      { name: 'Progress Tracking', icon: Activity, path: '/worker/progress-tracking' },
     ],
   },
   {
@@ -32,6 +33,7 @@ const workerNavGroups = [
     collapsible: true,
     items: [
       { name: 'Learning Progress', icon: BookOpen, path: '/worker/learning' },
+      { name: 'Learning Session', icon: BrainCircuit, path: '/worker/learning-session' },
       { name: 'Adaptive Learning', icon: Brain, path: '/worker/adaptive-learning' },
       { name: 'Whiteboard', icon: PenTool, path: '/worker/board' },
     ],
@@ -41,6 +43,7 @@ const workerNavGroups = [
     collapsible: true,
     items: [
       { name: 'Nutrition Status', icon: HeartPulse, path: '/worker/nutrition' },
+      { name: 'Predictive Risk', icon: Route, path: '/worker/predictive-risk' },
       { name: 'Immunization', icon: Syringe, path: '/worker/immunization' },
     ],
   },
@@ -54,6 +57,7 @@ const workerNavGroups = [
     collapsible: true,
     items: [
       { name: 'Critical Alerts', icon: AlertCircle, path: '/worker/alerts' },
+      { name: 'AI Dashboard', icon: BrainCircuit, path: '/worker/ai-dashboard' },
       { name: 'Suggested Actions', icon: Lightbulb, path: '/worker/insights' },
     ],
   },
@@ -84,6 +88,7 @@ const supervisorNavGroups = [
     items: [
       { name: 'Attendance Trends', icon: CalendarDays, path: '/supervisor/attendance' },
       { name: 'Educational Progress', icon: BookOpen, path: '/supervisor/learning' },
+      { name: 'AI Dashboard', icon: BrainCircuit, path: '/supervisor/ai-dashboard' },
     ],
   },
   {
@@ -91,6 +96,7 @@ const supervisorNavGroups = [
     collapsible: true,
     items: [
       { name: 'Nutrition Tracking', icon: HeartPulse, path: '/supervisor/nutrition' },
+      { name: 'Predictive Risk', icon: Route, path: '/supervisor/predictive-risk' },
       { name: 'Immunization Coverage', icon: Syringe, path: '/supervisor/immunization' },
     ],
   },

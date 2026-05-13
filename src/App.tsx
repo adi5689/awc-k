@@ -13,6 +13,10 @@ import { WorkerChildren } from './pages/worker/WorkerChildren';
 import { ChildProfile } from './pages/worker/ChildProfile';
 import { AdaptiveLearning } from './pages/worker/AdaptiveLearning';
 import { WorkerAdaptiveLearning } from './pages/worker/WorkerAdaptiveLearning';
+import { LearningSession } from './pages/worker/LearningSession';
+import { ChildProgressTracking } from './pages/worker/ChildProgressTracking';
+import { AIAssistedDashboard } from './pages/worker/AIAssistedDashboard';
+import { PredictiveRisk } from './pages/worker/PredictiveRisk';
 import { GreenBoardPage } from './pages/worker/GreenBoardPage';
 import { WorkerAlerts } from './pages/worker/WorkerAlerts';
 import { WorkerInsights } from './pages/worker/WorkerInsights';
@@ -31,6 +35,8 @@ import { SupervisorNutrition } from './pages/supervisor/SupervisorNutrition';
 import { SupervisorLearning } from './pages/supervisor/SupervisorLearning';
 import { SupervisorImmunization } from './pages/supervisor/SupervisorImmunization';
 import { SupervisorReports } from './pages/supervisor/SupervisorReports';
+import { SupervisorAIAssistedDashboard } from './pages/supervisor/SupervisorAIAssistedDashboard';
+import { SupervisorPredictiveRisk } from './pages/supervisor/SupervisorPredictiveRisk';
 
 // Admin pages
 import { AdminDashboard } from './pages/admin/AdminDashboard';
@@ -49,14 +55,18 @@ export default function App() {
         <Route index element={<WorkerDashboard />} />
         <Route path="child/:childId" element={<ChildProfile />} />
         <Route path="children" element={<WorkerChildren />} />
+        <Route path="progress-tracking" element={<ChildProgressTracking />} />
         <Route path="nutrition" element={<Nutrition />} />
+        <Route path="predictive-risk" element={<PredictiveRisk />} />
         <Route path="immunization" element={<Immunization />} />
         <Route path="attendance" element={<Attendance />} />
         <Route path="reports" element={<Reports />} />
         <Route path="learning" element={<AdaptiveLearning />} />
+        <Route path="learning-session" element={<LearningSession />} />
         <Route path="adaptive-learning" element={<WorkerAdaptiveLearning />} />
         <Route path="board" element={<GreenBoardPage />} />
         <Route path="alerts" element={<WorkerAlerts />} />
+        <Route path="ai-dashboard" element={<AIAssistedDashboard />} />
         <Route path="insights" element={<WorkerInsights />} />
         <Route path="offline-sync" element={<OfflineSync />} />
       </Route>
@@ -69,7 +79,9 @@ export default function App() {
         <Route path="child/:childId" element={<ChildProfile />} />
         <Route path="attendance" element={<SupervisorAttendance />} />
         <Route path="nutrition" element={<SupervisorNutrition />} />
+        <Route path="predictive-risk" element={<SupervisorPredictiveRisk />} />
         <Route path="learning" element={<SupervisorLearning />} />
+        <Route path="ai-dashboard" element={<SupervisorAIAssistedDashboard />} />
         <Route path="immunization" element={<SupervisorImmunization />} />
         <Route path="reports" element={<SupervisorReports />} />
       </Route>

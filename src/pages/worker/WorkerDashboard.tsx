@@ -35,6 +35,7 @@ import {
   type ChildNutritionBand,
 } from '../../data/childMonitoringData';
 import { Progress } from '../../components/ui/progress';
+import { FunctionalScopeFlow, type ScopeFlowItem } from '../../components/FunctionalScopeFlow';
 
 type ForecastBand = 'Normal' | 'MAM' | 'SAM';
 
@@ -53,6 +54,39 @@ function toForecastBand(status: ChildNutritionBand): ForecastBand {
 function signed(value: number, suffix = '') {
   return `${value >= 0 ? '+' : ''}${value.toFixed(1)}${suffix}`;
 }
+
+const workerScopeFlow: ScopeFlowItem[] = [
+  {
+    letter: 'A',
+    title: 'Adaptive learning',
+    description: 'Capture responses, score live, and adjust next activity difficulty.',
+    path: '/worker/learning-session',
+  },
+  {
+    letter: 'B',
+    title: 'Child profile',
+    description: 'Review longitudinal progress, domain profile, and peer comparison.',
+    path: '/worker/progress-tracking',
+  },
+  {
+    letter: 'C',
+    title: 'AI dashboard',
+    description: 'Use green, yellow, red class indicators and targeted actions.',
+    path: '/worker/ai-dashboard',
+  },
+  {
+    letter: 'D',
+    title: 'Predictive risk',
+    description: 'Forecast 30-day MAM/SAM and combined learning-nutrition risk.',
+    path: '/worker/predictive-risk',
+  },
+  {
+    letter: 'E',
+    title: 'Offline sync',
+    description: 'Track local records, conflicts, retries, and periodic sync.',
+    path: '/worker/offline-sync',
+  },
+];
 
 export function WorkerDashboard() {
   const navigate = useNavigate();
@@ -173,6 +207,12 @@ export function WorkerDashboard() {
           </div>
         </div>
       </section>
+
+      <FunctionalScopeFlow
+        title="AWW daily flow"
+        subtitle="Start from child response capture, move into profile review, intervention, prediction, and sync."
+        items={workerScopeFlow}
+      />
 
       {/* Stats Overview */}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

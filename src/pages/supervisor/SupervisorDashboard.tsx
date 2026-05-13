@@ -27,8 +27,42 @@ import {
   getTHRMetrics,
   getNutritionBurden,
 } from '../../data/supervisorInsights';
+import { FunctionalScopeFlow, type ScopeFlowItem } from '../../components/FunctionalScopeFlow';
 
 const COLORS = ['#10b981', '#f59e0b', '#ef4444']; // Normal, MAM, SAM
+
+const supervisorScopeFlow: ScopeFlowItem[] = [
+  {
+    letter: 'A',
+    title: 'Learning review',
+    description: 'Monitor centre-level learning outcomes and identify support gaps.',
+    path: '/supervisor/learning',
+  },
+  {
+    letter: 'B',
+    title: 'Centre profiles',
+    description: 'Open AWC directory and drill into child/centre progress records.',
+    path: '/supervisor/awc-list',
+  },
+  {
+    letter: 'C',
+    title: 'AI dashboard',
+    description: 'Review AWC-wise and block-wise green, yellow, red analytics.',
+    path: '/supervisor/ai-dashboard',
+  },
+  {
+    letter: 'D',
+    title: 'Predictive risk',
+    description: 'Forecast nutrition-learning risk load across centres.',
+    path: '/supervisor/predictive-risk',
+  },
+  {
+    letter: 'E',
+    title: 'Sync watch',
+    description: 'Track pending/error sync centres through the compliance watch.',
+    path: '/supervisor',
+  },
+];
 
 export function SupervisorDashboard() {
   const [loading, setLoading] = useState(true);
@@ -187,6 +221,12 @@ export function SupervisorDashboard() {
           </div>
         </div>
       </section>
+
+      <FunctionalScopeFlow
+        title="Supervisor review flow"
+        subtitle="Move from learning and centre profile checks into AI ranking, prediction, and sync compliance."
+        items={supervisorScopeFlow}
+      />
 
       {/* 8 Detailed KPI Cards Mirroring Worker Dashboard */}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
