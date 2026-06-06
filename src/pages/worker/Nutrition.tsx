@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AlertTriangle,
   Apple,
@@ -6,6 +6,8 @@ import {
   CalendarDays,
   CheckCircle,
   ClipboardList,
+  Download,
+  FileSpreadsheet,
   HeartPulse,
   Home,
   Plus,
@@ -23,6 +25,7 @@ import {
   monthlyIntakeByChild,
   nutritionTrackingByChild,
   type ChildNutritionBand,
+  type ManagedChild,
   type MonthlyIntake,
 } from '../../data/childMonitoringData';
 import { Button } from '../../components/ui/button';
@@ -31,7 +34,10 @@ import { Progress } from '../../components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { SideDrawer } from '../../components/ui/side-drawer';
 import { ToggleSwitch } from '../../components/ui/toggle-switch';
+import { useAppStore } from '../../store/useAppStore';
 import { cn } from '../../utils';
+import { downloadCsv, downloadExcelHtml } from '../../utils/exportFiles';
+import { calculateWhoZScores } from '../../utils/whoGrowth';
 
 type NutritionRecord = {
   weight: number;
@@ -73,12 +79,29 @@ const defaultNutritionRecord: NutritionRecord = {
 };
 
 const foodGroupOptions = ['Grains', 'Pulses', 'Milk', 'Egg/Fish/Meat', 'Vegetables', 'Fruits', 'Fats'];
+const NUTRITION_CACHE_KEY = 'awc-nutrition-records';
+const NUTRITION_HISTORY_CACHE_KEY = 'awc-nutrition-history';
+
+function readJsonCache<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined') return fallback;
+
+  try {
+    const cached = localStorage.getItem(key);
+    return cached ? JSON.parse(cached) as T : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 function getTodayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function getNutritionBand(record: NutritionRecord): ChildNutritionBand {
+function getNutritionBand(record: NutritionRecord, child?: ManagedChild): ChildNutritionBand {
+  if (child && record.weight > 0 && record.height > 0) {
+    return calculateWhoZScores(child, record).band;
+  }
+
   if (record.edema || (record.muac > 0 && record.muac < 11.5)) {
     return 'Severe';
   }
@@ -118,27 +141,37 @@ function formatMonthLabel(date: string) {
 }
 
 export function Nutrition() {
+  const { addToSyncQueue } = useAppStore();
   const [selectedChildId, setSelectedChildId] = useState(managedChildren[0].id);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [nutritionByChild, setNutritionByChild] = useState<Record<string, Partial<NutritionRecord>>>(
-    nutritionTrackingByChild as Record<string, Partial<NutritionRecord>>
+  const [nutritionByChild, setNutritionByChild] = useState<Record<string, Partial<NutritionRecord>>>(() =>
+    readJsonCache(NUTRITION_CACHE_KEY, nutritionTrackingByChild as Record<string, Partial<NutritionRecord>>)
   );
-  const [historyByChild, setHistoryByChild] = useState<Record<string, MonthlyIntake[]>>(monthlyIntakeByChild);
+  const [historyByChild, setHistoryByChild] = useState<Record<string, MonthlyIntake[]>>(() =>
+    readJsonCache(NUTRITION_HISTORY_CACHE_KEY, monthlyIntakeByChild)
+  );
   const [entryForm, setEntryForm] = useState<NutritionEntryForm>(() =>
     createEntryDraft((nutritionTrackingByChild as Record<string, Partial<NutritionRecord>>)[managedChildren[0].id] ?? defaultNutritionRecord)
   );
 
+  const getRecordForChild = (childId: string): NutritionRecord => {
+    const history = historyByChild[childId] ?? [];
+    const latest = history.at(-1);
+    const saved = nutritionByChild[childId] ?? {};
+
+    return {
+      ...defaultNutritionRecord,
+      ...saved,
+      weight: saved.weight ?? latest?.weight ?? 0,
+      height: saved.height ?? latest?.height ?? 0,
+      muac: saved.muac ?? latest?.muac ?? 0,
+    };
+  };
+
   const selectedChild = managedChildren.find((child) => child.id === selectedChildId);
   const intakeHistory = historyByChild[selectedChildId] ?? [];
   const latestIntake = intakeHistory.at(-1);
-  const savedRecord = nutritionByChild[selectedChildId] ?? {};
-  const currentRecord = {
-    ...defaultNutritionRecord,
-    ...savedRecord,
-    weight: savedRecord.weight ?? latestIntake?.weight ?? 0,
-    height: savedRecord.height ?? latestIntake?.height ?? 0,
-    muac: savedRecord.muac ?? latestIntake?.muac ?? 0,
-  };
+  const currentRecord = getRecordForChild(selectedChildId);
   const nutritionTrendData = intakeHistory.map((entry) => ({
     ...entry,
     shortMonth: entry.month.split(' ')[0],
@@ -158,11 +191,14 @@ export function Nutrition() {
       height: saved.height ?? latest?.height ?? 0,
       muac: saved.muac ?? latest?.muac ?? 0,
     };
+    const zScore = calculateWhoZScores(child, record);
+
     return {
       child,
       latest,
       record,
-      status: getNutritionBand(record),
+      zScore,
+      status: zScore.band,
     };
   });
   const nutritionStats = {
@@ -173,10 +209,21 @@ export function Nutrition() {
   };
 
   useEffect(() => {
-    setEntryForm(createEntryDraft(currentRecord));
-  }, [selectedChildId]);
+    localStorage.setItem(NUTRITION_CACHE_KEY, JSON.stringify(nutritionByChild));
+  }, [nutritionByChild]);
 
-  const currentStatus = useMemo(() => getNutritionBand(currentRecord), [currentRecord]);
+  useEffect(() => {
+    localStorage.setItem(NUTRITION_HISTORY_CACHE_KEY, JSON.stringify(historyByChild));
+  }, [historyByChild]);
+
+  const selectChild = (childId: string) => {
+    setSelectedChildId(childId);
+    setEntryForm(createEntryDraft(getRecordForChild(childId)));
+  };
+
+  const currentZScore = selectedChild ? calculateWhoZScores(selectedChild, currentRecord) : null;
+  const draftZScore = selectedChild ? calculateWhoZScores(selectedChild, entryForm) : null;
+  const currentStatus = currentZScore?.band ?? 'Normal';
   const isNutritionOnTrack = currentStatus === 'Normal';
 
   const thrCoverageLabel = currentRecord.thrReceived
@@ -184,6 +231,37 @@ export function Nutrition() {
       ? 'Received and consumed'
       : 'Received, consumption pending'
     : 'Distribution pending';
+
+  const buildPoshanRows = () => nutritionRoster.map((item) => ({
+    poshan_child_id: `POSHAN-${item.child.id.toUpperCase()}`,
+    awc_code: 'AWC-PADMAPUR-001',
+    child_id: item.child.id,
+    child_name: item.child.name,
+    dob: item.child.dob,
+    gender: item.child.gender,
+    entry_date: item.latest?.date ?? getTodayIso(),
+    weight_kg: item.record.weight,
+    height_cm: item.record.height,
+    muac_cm: item.record.muac,
+    waz: item.zScore.waz,
+    haz: item.zScore.haz,
+    whz: item.zScore.whz,
+    nutrition_status: item.status,
+    zscore_reason: item.zScore.reason,
+    thr_received: item.record.thrReceived ? 'Yes' : 'No',
+    thr_consumed: item.record.thrConsumed ? 'Yes' : 'No',
+    meals_per_day: item.record.mealsPerDay,
+    diversity_score: item.record.diversityScore,
+    home_visit_needed: item.record.homeVisitNeeded || item.status !== 'Normal' ? 'Yes' : 'No',
+  }));
+
+  const exportPoshanCsv = () => {
+    downloadCsv(`poshan-nutrition-${getTodayIso()}.csv`, buildPoshanRows());
+  };
+
+  const exportPoshanExcel = () => {
+    downloadExcelHtml(`poshan-nutrition-${getTodayIso()}.xls`, buildPoshanRows());
+  };
 
   const saveNutritionEntry = () => {
     const normalizedRecord: NutritionRecord = {
@@ -202,7 +280,8 @@ export function Nutrition() {
       homeVisitNeeded: entryForm.homeVisitNeeded,
     };
 
-    const nutritionStatus = getNutritionBand(normalizedRecord);
+    const nutritionStatus = selectedChild ? getNutritionBand(normalizedRecord, selectedChild) : getNutritionBand(normalizedRecord);
+    const zScore = selectedChild ? calculateWhoZScores(selectedChild, normalizedRecord) : null;
     const previousEntry = intakeHistory.at(-1);
     const noteParts = [entryForm.followUpAction.trim(), entryForm.notes.trim()].filter(Boolean);
 
@@ -216,7 +295,7 @@ export function Nutrition() {
       learningScore: previousEntry?.learningScore ?? 0,
       attendanceRate: previousEntry?.attendanceRate ?? 0,
       nutritionStatus,
-      notes: noteParts.join(' • ') || 'Nutrition entry recorded.',
+      notes: noteParts.join(' | ') || 'Nutrition entry recorded.',
     };
 
     setNutritionByChild((current) => ({
@@ -228,6 +307,17 @@ export function Nutrition() {
       ...current,
       [selectedChildId]: [...(current[selectedChildId] ?? []), nextHistoryEntry],
     }));
+
+    addToSyncQueue({
+      type: 'nutrition',
+      data: {
+        childId: selectedChildId,
+        entry: nextHistoryEntry,
+        record: normalizedRecord,
+        zScore,
+        poshanPayloadReady: true,
+      },
+    });
 
     setIsDrawerOpen(false);
   };
@@ -373,6 +463,26 @@ export function Nutrition() {
                 />
               </div>
             </div>
+            {draftZScore && (
+              <div className="border-t border-border px-5 py-4">
+                <div className="grid gap-3 md:grid-cols-4">
+                  {[
+                    { label: 'WAZ', value: draftZScore.waz },
+                    { label: 'HAZ', value: draftZScore.haz },
+                    { label: 'WHZ', value: draftZScore.whz },
+                    { label: 'WHO Band', value: draftZScore.band },
+                  ].map((item) => (
+                    <div key={item.label} className="rounded-2xl border border-border bg-background/70 p-3">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">{item.label}</p>
+                      <p className="mt-2 text-lg font-black text-foreground">{item.value}</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Frontend WHO-style reference calculator updates as the worker edits measurements.
+                </p>
+              </div>
+            )}
           </section>
 
           <section className="rounded-[1.5rem] border border-border bg-card">
@@ -598,7 +708,7 @@ export function Nutrition() {
           </div>
           <div className="flex items-center gap-3 w-full lg:w-auto">
             <div className="w-full lg:w-64 max-w-xs">
-              <Select value={selectedChildId} onValueChange={setSelectedChildId}>
+              <Select value={selectedChildId} onValueChange={selectChild}>
                 <SelectTrigger className="h-12 rounded-2xl">
                   <SelectValue placeholder="Select child" />
                 </SelectTrigger>
@@ -611,6 +721,14 @@ export function Nutrition() {
                 </SelectContent>
               </Select>
             </div>
+            <Button variant="outline" onClick={exportPoshanCsv} className="h-12 rounded-2xl gap-2 px-4">
+              <Download size={16} />
+              POSHAN CSV
+            </Button>
+            <Button variant="outline" onClick={exportPoshanExcel} className="hidden h-12 rounded-2xl gap-2 px-4 sm:inline-flex">
+              <FileSpreadsheet size={16} />
+              Excel
+            </Button>
             <Button
               onClick={() => {
                 setEntryForm(createEntryDraft(currentRecord));

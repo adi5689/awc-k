@@ -1,24 +1,21 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { downloadCsv, downloadExcelHtml } from './exportFiles';
 import {
   consolidatedAttendanceHistory,
   dashboardHealthSnapshot,
-  growthHistoryByChild,
   healthLogsSeed,
   immunizationByChild,
   managedChildren,
-  monthlyIntakeByChild,
-  nutritionTrackingByChild,
   getVaccineCompletionCount,
 } from '../data/childMonitoringData';
 
 export type WorkerReportKind =
   | 'overall'
-  | 'growth'
-  | 'nutrition'
   | 'immunization'
   | 'health'
-  | 'attendance';
+  | 'attendance'
+  | 'daily';
 
 type ReportMetric = {
   label: string;
@@ -71,8 +68,6 @@ function getHealthAlerts(childId: string) {
 function getOverallReport(): ReportDefinition {
   const latestAttendance = getLatestAttendanceBlock();
   const rows = managedChildren.map((child) => {
-    const growth = growthHistoryByChild[child.id]?.at(-1);
-    const intake = monthlyIntakeByChild[child.id]?.at(-1);
     const immunization = immunizationByChild[child.id];
     const attendance = latestAttendance.stats.find((entry) => entry.childId === child.id);
 
@@ -81,9 +76,6 @@ function getOverallReport(): ReportDefinition {
       `${child.ageLabel} / ${child.gender}`,
       child.parentName,
       child.phoneNumber,
-      growth ? `${growth.weight} kg` : '-',
-      growth ? `${growth.height} cm` : '-',
-      intake?.nutritionStatus ?? child.nutritionStatus,
       `${getVaccineCompletionCount(immunization)}/5`,
       getHealthAlerts(child.id),
       attendance ? `${attendance.percent}%` : '-',
@@ -92,82 +84,15 @@ function getOverallReport(): ReportDefinition {
 
   return {
     title: 'Overall Centre Report',
-    subtitle: 'Comprehensive child-wise status across growth, nutrition, health, immunization, and attendance.',
+    subtitle: 'Comprehensive child-wise status across health, immunization, and attendance.',
     fileName: 'awc-overall-report.pdf',
     summary: [
       { label: 'Centre Strength', value: `${managedChildren.length} children` },
       { label: 'Attendance Rate', value: `${dashboardHealthSnapshot.attendancePercent}%` },
       { label: 'Fully Immunized', value: `${dashboardHealthSnapshot.fullyImmunized}` },
-      { label: 'Severe Malnutrition', value: `${dashboardHealthSnapshot.severeMalnutrition}` },
+      { label: 'Health Alerts', value: `${healthLogsSeed.filter((item) => item.fever || item.diarrhea || item.cough || item.hospitalVisit).length}` },
     ],
-    columns: ['Child', 'Age / Gender', 'Parent', 'Phone', 'Weight', 'Height', 'Nutrition', 'Vaccines', 'Health Alerts', 'Attendance'],
-    rows,
-  };
-}
-
-function getGrowthReport(): ReportDefinition {
-  const rows = managedChildren.map((child) => {
-    const history = growthHistoryByChild[child.id] ?? [];
-    const latest = history.at(-1);
-    const previous = history.at(-2);
-    const weightDelta = latest && previous ? (latest.weight - previous.weight).toFixed(1) : '-';
-    const heightDelta = latest && previous ? (latest.height - previous.height).toFixed(1) : '-';
-
-    return [
-      child.name,
-      child.ageLabel,
-      latest ? formatDate(latest.date) : '-',
-      latest ? `${latest.weight} kg` : '-',
-      latest ? `${latest.height} cm` : '-',
-      latest ? `${latest.muac} cm` : '-',
-      weightDelta === '-' ? '-' : `${weightDelta} kg`,
-      heightDelta === '-' ? '-' : `${heightDelta} cm`,
-    ];
-  });
-
-  return {
-    title: 'Growth Report',
-    subtitle: 'Latest anthropometric status and recent monthly change for all enrolled children.',
-    fileName: 'awc-growth-report.pdf',
-    summary: [
-      { label: 'Children Covered', value: `${managedChildren.length}` },
-      { label: 'Normal Nutrition Band', value: `${managedChildren.filter((child) => child.nutritionStatus === 'Normal').length}` },
-      { label: 'Moderate Risk', value: `${managedChildren.filter((child) => child.nutritionStatus === 'Moderate').length}` },
-      { label: 'High Risk', value: `${managedChildren.filter((child) => child.nutritionStatus === 'Severe').length}` },
-    ],
-    columns: ['Child', 'Age', 'Last Visit', 'Weight', 'Height', 'MUAC', 'Weight Change', 'Height Change'],
-    rows,
-  };
-}
-
-function getNutritionReport(): ReportDefinition {
-  const rows = managedChildren.map((child) => {
-    const tracking = nutritionTrackingByChild[child.id as keyof typeof nutritionTrackingByChild];
-    const intake = monthlyIntakeByChild[child.id]?.at(-1);
-
-    return [
-      child.name,
-      tracking?.breastfeedingStatus ?? '-',
-      tracking ? `${tracking.mealsPerDay}` : '-',
-      tracking ? `${tracking.diversityScore}%` : '-',
-      tracking?.thrReceived ? 'Yes' : 'No',
-      tracking?.thrConsumed ? 'Yes' : 'No',
-      intake?.nutritionStatus ?? child.nutritionStatus,
-      intake?.notes ?? '-',
-    ];
-  });
-
-  return {
-    title: 'Nutrition Report',
-    subtitle: 'Child-wise feeding practice, THR coverage, and dietary diversity review.',
-    fileName: 'awc-nutrition-report.pdf',
-    summary: [
-      { label: 'Underweight / At Risk', value: `${dashboardHealthSnapshot.underweightChildren}` },
-      { label: 'Normal Nutrition', value: `${managedChildren.filter((child) => child.nutritionStatus === 'Normal').length}` },
-      { label: 'THR Coverage', value: `${Object.values(nutritionTrackingByChild).filter((item) => item.thrReceived).length}/${managedChildren.length}` },
-      { label: 'Avg Diversity Score', value: `${Math.round(Object.values(nutritionTrackingByChild).reduce((sum, item) => sum + item.diversityScore, 0) / managedChildren.length)}%` },
-    ],
-    columns: ['Child', 'Breastfeeding', 'Meals / Day', 'Diversity', 'THR Received', 'THR Consumed', 'Status', 'Latest Notes'],
+    columns: ['Child', 'Age / Gender', 'Parent', 'Phone', 'Vaccines', 'Health Alerts', 'Attendance'],
     rows,
   };
 }
@@ -261,22 +186,59 @@ function getAttendanceReport(): ReportDefinition {
   };
 }
 
+function getDailySummaryReport(): ReportDefinition {
+  const latestAttendance = getLatestAttendanceBlock();
+  const rows = managedChildren.map((child) => {
+    const todayPresent = latestAttendance.dates.at(-1)?.childStatus[child.id] ?? false;
+    const immunization = immunizationByChild[child.id];
+
+    return [
+      child.name,
+      todayPresent ? 'Present' : 'Absent',
+      `${getVaccineCompletionCount(immunization)}/5`,
+      getHealthAlerts(child.id),
+      todayPresent ? 'Routine monitoring' : 'Home follow-up if absence continues',
+    ];
+  });
+
+  return {
+    title: 'Daily AWC Summary Report',
+    subtitle: 'One-day operational summary for attendance, immunization, health alerts, and follow-up actions.',
+    fileName: 'awc-daily-summary-report.pdf',
+    summary: [
+      { label: 'Students', value: `${managedChildren.length}` },
+      { label: 'Present Today', value: `${rows.filter((row) => row[1] === 'Present').length}` },
+      { label: 'Fully Immunized', value: `${dashboardHealthSnapshot.fullyImmunized}` },
+      { label: 'Health Alerts', value: `${healthLogsSeed.filter((item) => item.fever || item.diarrhea || item.cough || item.hospitalVisit).length}` },
+    ],
+    columns: ['Child', 'Attendance', 'Vaccines', 'Health Alerts', 'Next Action'],
+    rows,
+  };
+}
+
 function getReportDefinition(kind: WorkerReportKind): ReportDefinition {
   switch (kind) {
-    case 'growth':
-      return getGrowthReport();
-    case 'nutrition':
-      return getNutritionReport();
     case 'immunization':
       return getImmunizationReport();
     case 'health':
       return getHealthReport();
     case 'attendance':
       return getAttendanceReport();
+    case 'daily':
+      return getDailySummaryReport();
     case 'overall':
     default:
       return getOverallReport();
   }
+}
+
+function reportRowsAsRecords(report: ReportDefinition) {
+  return report.rows.map((row) =>
+    report.columns.reduce<Record<string, string>>((record, column, index) => ({
+      ...record,
+      [column.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')]: row[index] ?? '',
+    }), {})
+  );
 }
 
 function drawHeader(doc: jsPDF, title: string, subtitle: string) {
@@ -364,4 +326,14 @@ export function downloadWorkerReport(kind: WorkerReportKind) {
   });
 
   doc.save(report.fileName);
+}
+
+export function downloadWorkerReportCsv(kind: WorkerReportKind) {
+  const report = getReportDefinition(kind);
+  downloadCsv(report.fileName.replace('.pdf', '.csv'), reportRowsAsRecords(report));
+}
+
+export function downloadWorkerReportExcel(kind: WorkerReportKind) {
+  const report = getReportDefinition(kind);
+  downloadExcelHtml(report.fileName.replace('.pdf', '.xls'), reportRowsAsRecords(report));
 }

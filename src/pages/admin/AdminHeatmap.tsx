@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { mockBlocks } from '../../data/mockData';
 import { cn, simulateAPI, formatIndianNumber } from '../../utils';
 import { DashboardSkeleton } from '../../components/ui/loading-skeleton';
-import { Target, Filter } from 'lucide-react';
+import { Target } from 'lucide-react';
 
 type Metric = 'learning' | 'nutrition' | 'overall';
 
@@ -42,7 +42,7 @@ export function AdminHeatmap() {
             <Target size={24} className="text-purple-600" />
             Performance Heatmap
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">Ganjam District — Block-wise visualization</p>
+          <p className="text-sm text-muted-foreground mt-1">Kalahandi District - Block-wise visualization</p>
         </div>
         <div className="flex gap-2">
           {[

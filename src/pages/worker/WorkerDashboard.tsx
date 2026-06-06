@@ -6,20 +6,18 @@ import {
   AlertCircle,
   BarChart3,
   BookOpen,
-  HeartPulse,
   ShieldCheck,
   MapPin,
   Sparkles,
   Stars,
   TrendingUp,
   Users,
-  PieChart as PieIcon,
   CalendarCheck2,
   AlertTriangle,
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, BarChart, Bar,
+  BarChart, Bar,
 } from 'recharts';
 import {
   learningJourneyByTheme,
@@ -29,31 +27,8 @@ import { useTranslation } from '../../hooks/useTranslation';
 import { getWorkerAlerts, getWorkerContext } from './workerAlertData';
 import {
   dashboardHealthSnapshot,
-  getGrowthStatusFromMuac,
-  managedChildren,
-  monthlyIntakeByChild,
-  type ChildNutritionBand,
 } from '../../data/childMonitoringData';
-import { Progress } from '../../components/ui/progress';
 import { FunctionalScopeFlow, type ScopeFlowItem } from '../../components/FunctionalScopeFlow';
-
-type ForecastBand = 'Normal' | 'MAM' | 'SAM';
-
-const forecastBandTone: Record<ForecastBand, string> = {
-  Normal: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
-  MAM: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
-  SAM: 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
-};
-
-function toForecastBand(status: ChildNutritionBand): ForecastBand {
-  if (status === 'Moderate') return 'MAM';
-  if (status === 'Severe') return 'SAM';
-  return 'Normal';
-}
-
-function signed(value: number, suffix = '') {
-  return `${value >= 0 ? '+' : ''}${value.toFixed(1)}${suffix}`;
-}
 
 const workerScopeFlow: ScopeFlowItem[] = [
   {
@@ -76,12 +51,6 @@ const workerScopeFlow: ScopeFlowItem[] = [
   },
   {
     letter: 'D',
-    title: 'Predictive risk',
-    description: 'Forecast 30-day MAM/SAM and combined learning-nutrition risk.',
-    path: '/worker/predictive-risk',
-  },
-  {
-    letter: 'E',
     title: 'Offline sync',
     description: 'Track local records, conflicts, retries, and periodic sync.',
     path: '/worker/offline-sync',
@@ -122,60 +91,7 @@ export function WorkerDashboard() {
 
   const attendanceTrendData = attendanceView === 'weekly' ? weeklyTrendData : monthlyTrendData;
 
-  const nutritionData = dashboardHealthSnapshot.nutritionPie;
   const immunizationCoverageData = dashboardHealthSnapshot.immunizationBar;
-  const childNutritionForecasts = managedChildren
-    .map((child) => {
-      const history = monthlyIntakeByChild[child.id] ?? [];
-      const latest = history.at(-1);
-      const previous = history.at(-2);
-      const recent = history.slice(-3);
-      const monthlyMuacGain =
-        recent.length > 1
-          ? (recent.at(-1)!.muac - recent[0].muac) / (recent.length - 1)
-          : latest && previous
-            ? latest.muac - previous.muac
-            : 0;
-      const monthlyWeightGain =
-        recent.length > 1
-          ? (recent.at(-1)!.weight - recent[0].weight) / (recent.length - 1)
-          : latest && previous
-            ? latest.weight - previous.weight
-            : 0;
-      const learningDelta = latest && previous ? latest.learningScore - previous.learningScore : 0;
-      const projectedMuac = Number(((latest?.muac ?? 13.5) + monthlyMuacGain).toFixed(1));
-      const predictedBand = toForecastBand(getGrowthStatusFromMuac(projectedMuac));
-      const currentBand = toForecastBand(latest?.nutritionStatus ?? child.nutritionStatus);
-      const confidence = Math.max(
-        62,
-        Math.min(92, Math.round(66 + history.length * 3 + Math.min(8, Math.abs(monthlyMuacGain) * 20) + (latest?.attendanceRate && latest.attendanceRate >= 80 ? 4 : 0)))
-      );
-      const action =
-        predictedBand === 'SAM'
-          ? 'Immediate referral review and home visit'
-          : predictedBand === 'MAM'
-            ? 'Weekly nutrition follow-up and THR check'
-            : 'Continue routine growth monitoring';
-
-      return {
-        id: child.id,
-        name: child.name,
-        ageLabel: child.ageLabel,
-        currentBand,
-        predictedBand,
-        confidence,
-        projectedMuac,
-        action,
-        riskRank: predictedBand === 'SAM' ? 0 : predictedBand === 'MAM' ? 1 : 2,
-        signal: `MUAC ${latest?.muac ?? '-'} cm (${signed(monthlyMuacGain, ' cm/mo')}), weight ${signed(monthlyWeightGain, ' kg/mo')}, attendance ${latest?.attendanceRate ?? '-'}%, learning ${learningDelta >= 0 ? '+' : ''}${learningDelta} pts.`,
-      };
-    })
-    .sort((a, b) => a.riskRank - b.riskRank || a.confidence - b.confidence);
-  const forecastSummary = {
-    normal: childNutritionForecasts.filter((item) => item.predictedBand === 'Normal').length,
-    mam: childNutritionForecasts.filter((item) => item.predictedBand === 'MAM').length,
-    sam: childNutritionForecasts.filter((item) => item.predictedBand === 'SAM').length,
-  };
 
   return (
     <div className="space-y-8 pb-10 animate-fade-in">
@@ -244,22 +160,6 @@ export function WorkerDashboard() {
             icon: AlertCircle,
             tone: 'red',
             meta: workerAlerts.length > 0 ? 'Tap to review alerts' : 'No urgent alerts',
-            action: '/worker/alerts',
-          },
-          {
-            label: 'Underweight Children',
-            value: dashboardHealthSnapshot.underweightChildren,
-            icon: HeartPulse,
-            tone: 'amber',
-            meta: 'Needs nutrition monitoring',
-            action: '/worker/nutrition',
-          },
-          {
-            label: 'Severe Malnutrition',
-            value: dashboardHealthSnapshot.severeMalnutrition,
-            icon: AlertTriangle,
-            tone: 'red',
-            meta: 'Highest priority follow-up',
             action: '/worker/alerts',
           },
           {
@@ -400,49 +300,6 @@ export function WorkerDashboard() {
               </ResponsiveContainer>
             </div>
           </div>
-
-          <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="text-xl font-semibold text-foreground">Nutrition Status Pie Chart</h3>
-                <p className="text-sm text-muted-foreground mt-2">Dummy nutrition distribution across tracked children.</p>
-              </div>
-              <PieIcon className="text-emerald-500" size={24} />
-            </div>
-            <div className="grid md:grid-cols-2 items-center">
-              <div className="h-[250px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={nutritionData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {nutritionData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="space-y-3">
-                {nutritionData.map((item) => (
-                  <div key={item.name} className="flex items-center justify-between p-3 rounded-2xl border border-border bg-background/50">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                      <span className="text-sm font-medium">{item.name}</span>
-                    </div>
-                    <span className="text-sm font-bold">{item.value} children</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Right Column: AI Insights & Quick Actions */}
@@ -507,84 +364,6 @@ export function WorkerDashboard() {
             </div>
           </div>
 
-        </div>
-      </section>
-
-      <section className="rounded-[2rem] border border-border bg-card p-5 shadow-sm md:p-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div className="max-w-3xl">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                <Sparkles size={20} />
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">Next month forecast</p>
-                <h3 className="mt-1 text-xl font-semibold text-foreground md:text-2xl">Child Nutrition Category Prediction</h3>
-              </div>
-            </div>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              Individual 30-day prediction for each child using MUAC trend, weight change, attendance, and learning movement.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 sm:min-w-[320px]">
-            {[
-              { label: 'Normal', value: forecastSummary.normal, band: 'Normal' as const },
-              { label: 'MAM', value: forecastSummary.mam, band: 'MAM' as const },
-              { label: 'SAM', value: forecastSummary.sam, band: 'SAM' as const },
-            ].map((item) => (
-              <div key={item.label} className="rounded-2xl border border-border bg-background/70 px-4 py-3 text-center">
-                <p className={cn('mx-auto inline-flex rounded-full px-2.5 py-1 text-xs font-bold', forecastBandTone[item.band])}>{item.label}</p>
-                <p className="mt-2 text-2xl font-bold text-foreground">{item.value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-6 grid gap-4 xl:grid-cols-2 2xl:grid-cols-3">
-          {childNutritionForecasts.map((item) => (
-            <div key={item.id} className="rounded-2xl border border-border bg-background/70 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 items-start gap-3">
-                  <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl', forecastBandTone[item.predictedBand])}>
-                    {item.predictedBand === 'Normal' ? <HeartPulse size={18} /> : <AlertTriangle size={18} />}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-base font-bold text-foreground">{item.name}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{item.ageLabel}</p>
-                  </div>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Likely band</p>
-                  <span className={cn('mt-1 inline-flex rounded-full px-2.5 py-1 text-xs font-bold', forecastBandTone[item.predictedBand])}>
-                    {item.predictedBand}
-                  </span>
-                </div>
-              </div>
-
-              <p className="mt-3 text-xs leading-5 text-muted-foreground">{item.signal}</p>
-
-              <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                <div className="min-h-[58px] rounded-xl bg-card px-3 py-2">
-                  <p className="text-muted-foreground">Current</p>
-                  <p className="mt-1 font-bold text-foreground">{item.currentBand}</p>
-                </div>
-                <div className="min-h-[58px] rounded-xl bg-card px-3 py-2">
-                  <p className="text-muted-foreground">Projected MUAC</p>
-                  <p className="mt-1 font-bold text-foreground">{item.projectedMuac} cm</p>
-                </div>
-                <div className="min-h-[58px] rounded-xl bg-card px-3 py-2">
-                  <p className="text-muted-foreground">Confidence</p>
-                  <p className="mt-1 font-bold text-foreground">{item.confidence}%</p>
-                </div>
-              </div>
-
-              <div className="mt-3 rounded-xl bg-card px-3 py-2">
-                <p className="text-xs font-semibold text-foreground">{item.action}</p>
-                <Progress value={item.confidence} className="mt-3 h-2 bg-muted" />
-              </div>
-            </div>
-          ))}
         </div>
       </section>
     </div>

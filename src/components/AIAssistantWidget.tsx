@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Bot, Mic, Send, Sparkles, Wand2, X } from 'lucide-react';
+import { useAppStore } from '../store/useAppStore';
+import { cn } from '../utils';
 
 const quickPrompts = [
   'Plan My Day for 3-4 year olds',
@@ -27,8 +29,10 @@ function getAssistantReply(prompt: string) {
 }
 
 export function AIAssistantWidget() {
+  const { userRole } = useAppStore();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const assistantPosition = userRole === 'worker' ? 'bottom-24 lg:bottom-6' : 'bottom-6';
   const [messages, setMessages] = useState<{ role: 'user' | 'ai'; text: string }[]>([
     {
       role: 'ai',
@@ -53,9 +57,11 @@ export function AIAssistantWidget() {
         whileHover={{ scale: 1.06 }}
         whileTap={{ scale: 0.96 }}
         onClick={() => setIsOpen(true)}
-        className={`fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 via-green-500 to-sky-500 text-white shadow-2xl shadow-emerald-900/30 transition-all ${
+        className={cn(
+          'fixed right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 via-green-500 to-sky-500 text-white shadow-2xl shadow-emerald-900/30 transition-all',
+          assistantPosition,
           isOpen ? 'pointer-events-none opacity-0' : 'opacity-100'
-        }`}
+        )}
         aria-label="Open Smart Anganwadi assistant"
       >
         <Bot size={30} />
@@ -67,7 +73,10 @@ export function AIAssistantWidget() {
             initial={{ opacity: 0, y: 24, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 24, scale: 0.96 }}
-            className="fixed bottom-6 right-6 z-50 flex w-[22rem] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-[2rem] border border-border bg-card shadow-2xl shadow-slate-950/20 md:w-[26rem]"
+            className={cn(
+              'fixed right-6 z-50 flex w-[22rem] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-[2rem] border border-border bg-card shadow-2xl shadow-slate-950/20 md:w-[26rem]',
+              assistantPosition
+            )}
             style={{ maxHeight: 'calc(100vh - 96px)' }}
           >
             <div className="bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.28),_transparent_36%),linear-gradient(135deg,#22c55e_0%,#38bdf8_48%,#f59e0b_100%)] p-4 text-white">

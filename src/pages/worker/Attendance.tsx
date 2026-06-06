@@ -1,1351 +1,409 @@
-import { type ReactNode, useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
-  BarChart3,
-  CalendarCheck2,
   CalendarDays,
   CheckCircle2,
-  ChevronDown,
-  ChevronRight,
-  ChevronUp,
-  ClipboardList,
-  Clock,
-  Flame,
-  History,
-  Info,
-  LineChart as LineChartIcon,
+  ClipboardCheck,
   Phone,
-  Plus,
-  Ruler,
-  Scale,
   Search,
-  Sparkles,
-  TrendingDown,
-  TrendingUp,
   UserCheck,
-  UserPlus,
   Users,
   XCircle,
 } from 'lucide-react';
 import {
-  BarChart, Bar, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
-  LineChart, Line, Legend,
-} from 'recharts';
-import * as Tabs from '@radix-ui/react-tabs';
-import {
   dailyAttendanceSeed,
   managedChildren,
-  monthlyAttendanceTrend,
-  monthlyIntakeByChild,
-  generateGrowthInsights,
-  consolidatedAttendanceHistory,
-  type ManagedChild,
-  type MonthlyIntake,
-  type GrowthInsight,
-  type MonthAttendanceBlock,
+  type AttendanceEntry,
 } from '../../data/childMonitoringData';
-import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { SideDrawer } from '../../components/ui/side-drawer';
+import { useAppStore } from '../../store/useAppStore';
 import { cn } from '../../utils';
 
 type WorkerAttendanceStatus = 'pending' | 'present' | 'absent';
-type Flow = 'none' | 'register' | 'track';
 
-type RegistrationForm = {
-  name: string;
-  dob: string;
-  gender: 'Male' | 'Female' | '';
-  parentName: string;
-  phoneNumber: string;
-  birthWeight: string;
-};
+const ATTENDANCE_CACHE_KEY = 'awc-daily-attendance';
+const ABSENCE_REASON_CACHE_KEY = 'awc-absence-reasons';
+const absenceReasonOptions = ['Illness', 'Family travel', 'Caregiver unavailable', 'Weather/transport', 'Unknown'];
 
-type ChildMetrics = {
-  childId: string;
-  weight: string;
-  height: string;
-  muac: string;
-  learningScore: string;
-  attendanceRate: string;
-  nutritionStatus: 'Normal' | 'Moderate' | 'Severe';
-  notes: string;
-  lastUpdated: string;
-};
+function readJsonCache<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined') return fallback;
 
-const emptyRegistrationForm: RegistrationForm = {
-  name: '',
-  dob: '',
-  gender: '',
-  parentName: '',
-  phoneNumber: '',
-  birthWeight: '',
-};
-
-const initialMetrics: ChildMetrics[] = managedChildren.map((child, index) => ({
-  childId: child.id,
-  weight: ['14.1', '12.0', '9.8', '15.2', '13.5', '11.7'][index] ?? '12.5',
-  height: ['95.8', '90.4', '86.0', '99.0', '93.1', '89.4'][index] ?? '90.0',
-  muac: ['14.3', '12.4', '11.5', '14.5', '13.3', '12.1'][index] ?? '12.5',
-  learningScore: ['92', '78', '35', '88', '71', '54'][index] ?? '60',
-  attendanceRate: ['94', '88', '65', '91', '82', '72'][index] ?? '80',
-  nutritionStatus: child.nutritionStatus,
-  notes:
-    child.nutritionStatus === 'Severe'
-      ? 'Needs nutrition follow-up and home visit.'
-      : child.nutritionStatus === 'Moderate'
-        ? 'Monitor meals and THR consumption.'
-        : 'On track.',
-  lastUpdated: '2026-04-22',
-}));
-
-function getMetricStatusClass(status: ChildMetrics['nutritionStatus']) {
-  if (status === 'Normal') return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300';
-  if (status === 'Moderate') return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300';
-  return 'border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300';
+  try {
+    const cached = localStorage.getItem(key);
+    return cached ? JSON.parse(cached) as T : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
-function getAgeLabel(dob: string) {
-  const birthDate = new Date(dob);
-  const now = new Date('2026-04-23');
-  const months = Math.max(0, (now.getFullYear() - birthDate.getFullYear()) * 12 + now.getMonth() - birthDate.getMonth());
-  return `${Math.floor(months / 12)}y ${months % 12}m`;
+function getTodayLabel() {
+  return new Date().toLocaleDateString('en-IN', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 }
 
-const todayFormatted = new Date('2026-04-23').toLocaleDateString('en-IN', {
-  weekday: 'long',
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric',
-});
+function getTodayIsoDate() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 export function Attendance() {
+  const { addToSyncQueue } = useAppStore();
   const [workerStatus, setWorkerStatus] = useState<WorkerAttendanceStatus>('pending');
-  const [showNextSteps, setShowNextSteps] = useState(false);
-  const [activeFlow, setActiveFlow] = useState<Flow>('none');
-  const [registrationOpen, setRegistrationOpen] = useState(false);
-  const [metricsOpen, setMetricsOpen] = useState(false);
-  const [metricsTab, setMetricsTab] = useState<'intake' | 'history' | 'insights'>('intake');
-  const [registrationForm, setRegistrationForm] = useState<RegistrationForm>(emptyRegistrationForm);
-  const [registrationErrors, setRegistrationErrors] = useState<Record<string, string>>({});
-  const [children, setChildren] = useState<ManagedChild[]>(managedChildren);
-  const [attendance, setAttendance] = useState(dailyAttendanceSeed);
-  const [metrics, setMetrics] = useState<ChildMetrics[]>(initialMetrics);
-  const [selectedChildId, setSelectedChildId] = useState(managedChildren[0].id);
+  const [attendance, setAttendance] = useState<AttendanceEntry[]>(() => readJsonCache(ATTENDANCE_CACHE_KEY, dailyAttendanceSeed));
+  const [absenceReasons, setAbsenceReasons] = useState<Record<string, string>>(() => readJsonCache(ABSENCE_REASON_CACHE_KEY, {}));
   const [studentSearch, setStudentSearch] = useState('');
-  const [historyMonthIndex, setHistoryMonthIndex] = useState(consolidatedAttendanceHistory.length - 1);
-  const [expandedHistoryDate, setExpandedHistoryDate] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
-  const selectedMonthBlock: MonthAttendanceBlock = consolidatedAttendanceHistory[historyMonthIndex];
+  const childById = useMemo(
+    () => new Map(managedChildren.map((child) => [child.id, child])),
+    []
+  );
 
   const presentStudents = attendance.filter((child) => child.present).length;
   const absentStudents = attendance.length - presentStudents;
-  const attendancePercentage = Math.round((presentStudents / attendance.length) * 100);
-  const selectedChild = children.find((child) => child.id === selectedChildId) ?? children[0];
-  const selectedMetrics = metrics.find((item) => item.childId === selectedChildId) ?? metrics[0];
+  const attendancePercentage = attendance.length ? Math.round((presentStudents / attendance.length) * 100) : 0;
+  const absentEntries = attendance.filter((entry) => !entry.present);
 
   const filteredAttendance = useMemo(() => {
-    if (!studentSearch.trim()) return attendance;
-    const query = studentSearch.toLowerCase();
-    return attendance.filter((child) => child.name.toLowerCase().includes(query));
-  }, [attendance, studentSearch]);
+    const query = studentSearch.trim().toLowerCase();
+    if (!query) return attendance;
 
-  const bmi = useMemo(() => {
-    const weight = Number(selectedMetrics.weight);
-    const heightM = Number(selectedMetrics.height) / 100;
-    if (!weight || !heightM) return '0.0';
-    return (weight / (heightM * heightM)).toFixed(1);
-  }, [selectedMetrics.height, selectedMetrics.weight]);
+    return attendance.filter((entry) => {
+      const child = childById.get(entry.id);
+      return (
+        entry.name.toLowerCase().includes(query) ||
+        child?.parentName.toLowerCase().includes(query) ||
+        child?.phoneNumber.includes(query)
+      );
+    });
+  }, [attendance, childById, studentSearch]);
 
-  // Monthly intake history for the selected child
-  const childIntakeHistory: MonthlyIntake[] = useMemo(
-    () => monthlyIntakeByChild[selectedChildId] ?? [],
-    [selectedChildId]
-  );
+  useEffect(() => {
+    localStorage.setItem(ATTENDANCE_CACHE_KEY, JSON.stringify(attendance));
+  }, [attendance]);
 
-  const childGrowthInsights: GrowthInsight[] = useMemo(
-    () => generateGrowthInsights(childIntakeHistory),
-    [childIntakeHistory]
-  );
+  useEffect(() => {
+    localStorage.setItem(ABSENCE_REASON_CACHE_KEY, JSON.stringify(absenceReasons));
+  }, [absenceReasons]);
 
   const markWorkerPresent = () => {
     setWorkerStatus('present');
-    setShowNextSteps(true);
-    setActiveFlow('none');
   };
 
   const markWorkerAbsent = () => {
     setWorkerStatus('absent');
-    setShowNextSteps(false);
-    setActiveFlow('none');
-    setRegistrationOpen(false);
-    setMetricsOpen(false);
-  };
-
-  const validateRegistration = () => {
-    const errors: Record<string, string> = {};
-    if (!registrationForm.name.trim()) errors.name = 'Child name is required.';
-    if (!registrationForm.dob) errors.dob = 'Date of birth is required.';
-    if (!registrationForm.gender) errors.gender = 'Gender is required.';
-    if (!registrationForm.parentName.trim()) errors.parentName = 'Parent name is required.';
-    if (!/^\d{10}$/.test(registrationForm.phoneNumber)) errors.phoneNumber = 'Enter a valid 10-digit phone number.';
-    const birthWeight = Number(registrationForm.birthWeight);
-    if (!birthWeight || Number.isNaN(birthWeight) || birthWeight <= 0 || birthWeight > 6) {
-      errors.birthWeight = 'Birth weight should be between 0.1 and 6 kg.';
-    }
-    setRegistrationErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleRegisterCandidate = () => {
-    if (!validateRegistration()) return;
-
-    const child: ManagedChild = {
-      id: `child-${Date.now()}`,
-      name: registrationForm.name.trim(),
-      dob: registrationForm.dob,
-      ageLabel: getAgeLabel(registrationForm.dob),
-      gender: registrationForm.gender as 'Male' | 'Female',
-      parentName: registrationForm.parentName.trim(),
-      phoneNumber: registrationForm.phoneNumber,
-      birthWeight: Number(registrationForm.birthWeight),
-      nutritionStatus: 'Normal',
-    };
-
-    setChildren((current) => [child, ...current]);
-    setAttendance((current) => [{ id: child.id, name: child.name, present: true }, ...current]);
-    setMetrics((current) => [
-      {
-        childId: child.id,
-        weight: String(child.birthWeight),
-        height: '50.0',
-        muac: '12.5',
-        learningScore: '0',
-        attendanceRate: '100',
-        nutritionStatus: 'Normal',
-        notes: 'New candidate registered from worker attendance flow.',
-        lastUpdated: '2026-04-23',
-      },
-      ...current,
-    ]);
-    setSelectedChildId(child.id);
-    setRegistrationForm(emptyRegistrationForm);
-    setRegistrationErrors({});
-    setRegistrationOpen(false);
-    setMetricsOpen(true);
-    setActiveFlow('track');
-  };
-
-  const updateSelectedMetrics = (updates: Partial<ChildMetrics>) => {
-    setMetrics((current) =>
-      current.map((item) =>
-        item.childId === selectedChildId
-          ? { ...item, ...updates, lastUpdated: '2026-04-23' }
-          : item
-      )
-    );
-  };
-
-  const openRegistrationDrawer = () => {
-    setActiveFlow('register');
-    setRegistrationOpen(true);
-  };
-
-  const openMetricsDrawer = () => {
-    setActiveFlow('track');
-    setMetricsOpen(true);
   };
 
   const markAllPresent = () => {
     setAttendance((current) => current.map((entry) => ({ ...entry, present: true })));
+    setAbsenceReasons({});
+    setSavedAt(null);
   };
 
   const markAllAbsent = () => {
     setAttendance((current) => current.map((entry) => ({ ...entry, present: false })));
+    setAbsenceReasons((current) =>
+      attendance.reduce<Record<string, string>>((next, entry) => ({
+        ...next,
+        [entry.id]: current[entry.id] ?? 'Unknown',
+      }), {})
+    );
+    setSavedAt(null);
   };
 
+  const toggleStudentAttendance = (childId: string) => {
+    const currentEntry = attendance.find((entry) => entry.id === childId);
+    if (!currentEntry) return;
+
+    const nextPresent = !currentEntry.present;
+
+    setAttendance((current) =>
+      current.map((entry) =>
+        entry.id === childId ? { ...entry, present: nextPresent } : entry
+      )
+    );
+
+    setAbsenceReasons((current) => {
+      if (!nextPresent) {
+        return { ...current, [childId]: current[childId] ?? 'Illness' };
+      }
+
+      const next = { ...current };
+      delete next[childId];
+      return next;
+    });
+
+    setSavedAt(null);
+  };
+
+  const updateAbsenceReason = (childId: string, reason: string) => {
+    setAbsenceReasons((current) => ({ ...current, [childId]: reason }));
+    setSavedAt(null);
+  };
+
+  const saveAttendanceSnapshot = () => {
+    addToSyncQueue({
+      type: 'attendance',
+      data: {
+        date: getTodayIsoDate(),
+        workerStatus,
+        attendance,
+        absenceReasons,
+        source: 'worker-attendance-frontend',
+      },
+    });
+    setSavedAt(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
+  };
+
+  const childControlsDisabled = workerStatus !== 'present';
+
   return (
-    <div className="space-y-6 pb-10 animate-fade-in">
-      {/* ─── Compact Header with Date & Status ─── */}
-      <section className="overflow-hidden rounded-[2rem] border border-border bg-card shadow-sm">
-        <div className="bg-[radial-gradient(circle_at_top_left,_rgba(20,184,166,0.15),_transparent_40%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.12),_transparent_40%)] p-6 dark:bg-[radial-gradient(circle_at_top_left,_rgba(20,184,166,0.1),_transparent_40%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.08),_transparent_40%)]">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                <Clock size={14} />
-                {todayFormatted}
-              </div>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Daily Attendance</h2>
+    <div className="mx-auto max-w-5xl space-y-5 pb-10 animate-fade-in">
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              <CalendarDays size={14} />
+              {getTodayLabel()}
             </div>
-            <div className="flex items-center gap-2">
-              {workerStatus === 'present' && (
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
-                >
-                  <CheckCircle2 size={14} />
-                  Worker Checked In
-                </motion.div>
-              )}
-              {workerStatus === 'absent' && (
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"
-                >
-                  <XCircle size={14} />
-                  Worker Absent
-                </motion.div>
-              )}
-            </div>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground">Daily Attendance</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Check in, mark children, and sync today's record.</p>
           </div>
 
-          {/* ─── Stat Chips ─── */}
-          <div className="mt-5 grid grid-cols-3 gap-3">
-            {[
-              {
-                label: 'Present',
-                value: presentStudents,
-                total: `/${attendance.length}`,
-                color: 'emerald',
-              },
-              {
-                label: 'Absent',
-                value: absentStudents,
-                total: `/${attendance.length}`,
-                color: 'red',
-              },
-              {
-                label: 'Rate',
-                value: `${attendancePercentage}%`,
-                total: '',
-                color: 'sky',
-              },
-            ].map((chip) => (
-              <div
-                key={chip.label}
-                className={cn(
-                  'rounded-2xl border p-3 text-center backdrop-blur-sm',
-                  chip.color === 'emerald' && 'border-emerald-200/70 bg-emerald-50/60 dark:border-emerald-900/50 dark:bg-emerald-950/20',
-                  chip.color === 'red' && 'border-red-200/70 bg-red-50/60 dark:border-red-900/50 dark:bg-red-950/20',
-                  chip.color === 'sky' && 'border-sky-200/70 bg-sky-50/60 dark:border-sky-900/50 dark:bg-sky-950/20',
-                )}
-              >
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{chip.label}</p>
-                <p className={cn(
-                  'mt-1 text-xl font-bold',
-                  chip.color === 'emerald' && 'text-emerald-700 dark:text-emerald-300',
-                  chip.color === 'red' && 'text-red-700 dark:text-red-300',
-                  chip.color === 'sky' && 'text-sky-700 dark:text-sky-300',
-                )}>
-                  {chip.value}
-                  {chip.total && <span className="text-sm font-medium text-muted-foreground">{chip.total}</span>}
-                </p>
-              </div>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              onClick={markWorkerPresent}
+              className={cn(
+                'rounded-xl',
+                workerStatus === 'present' && 'bg-emerald-600 hover:bg-emerald-700'
+              )}
+              variant={workerStatus === 'present' ? 'default' : 'outline'}
+            >
+              <UserCheck size={16} />
+              I am present
+            </Button>
+            <Button
+              type="button"
+              variant={workerStatus === 'absent' ? 'destructive' : 'outline'}
+              className="rounded-xl"
+              onClick={markWorkerAbsent}
+            >
+              <XCircle size={16} />
+              Mark absent
+            </Button>
           </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          {[
+            { label: 'Present', value: presentStudents, tone: 'emerald' },
+            { label: 'Absent', value: absentStudents, tone: 'red' },
+            { label: 'Rate', value: `${attendancePercentage}%`, tone: 'sky' },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className={cn(
+                'rounded-xl border p-4',
+                item.tone === 'emerald' && 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/50 dark:bg-emerald-950/20',
+                item.tone === 'red' && 'border-red-200 bg-red-50/70 dark:border-red-900/50 dark:bg-red-950/20',
+                item.tone === 'sky' && 'border-sky-200 bg-sky-50/70 dark:border-sky-900/50 dark:bg-sky-950/20'
+              )}
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{item.label}</p>
+              <p className="mt-1 text-2xl font-bold text-foreground">{item.value}</p>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* ─── Worker Check-In (only when pending) ─── */}
-      <AnimatePresence>
-        {workerStatus === 'pending' && (
-          <motion.section
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8, height: 0, marginTop: 0, overflow: 'hidden' }}
-            transition={{ duration: 0.3 }}
-            className="rounded-[2rem] border border-amber-200/80 bg-gradient-to-r from-amber-50/80 to-orange-50/60 p-5 shadow-sm dark:border-amber-900/60 dark:from-amber-950/20 dark:to-orange-950/10"
-          >
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                <UserCheck size={20} />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-foreground">Mark your attendance first</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">Check yourself in before marking student attendance.</p>
-                <div className="mt-4 flex gap-3">
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="rounded-xl bg-emerald-600 px-5 text-xs font-bold hover:bg-emerald-700"
-                    onClick={markWorkerPresent}
-                  >
-                    <CheckCircle2 size={14} />
-                    I'm Present
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="rounded-xl px-5 text-xs font-bold"
-                    onClick={markWorkerAbsent}
-                  >
-                    Mark Absent
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </motion.section>
-        )}
-      </AnimatePresence>
+      {workerStatus === 'pending' && (
+        <section className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200">
+          <AlertTriangle size={20} className="mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-bold">Mark your attendance first</p>
+            <p className="mt-1 text-sm text-amber-800/80 dark:text-amber-200/80">
+              Child attendance controls are available after worker check-in.
+            </p>
+          </div>
+        </section>
+      )}
 
-      {/* ─── Quick Actions (after worker check-in) ─── */}
-      <AnimatePresence>
-        {showNextSteps && (
-          <motion.section
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="grid gap-3 sm:grid-cols-2"
-          >
-            <button
-              type="button"
-              onClick={openRegistrationDrawer}
-              className={cn(
-                'group flex items-center gap-4 rounded-2xl border bg-card p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg',
-                activeFlow === 'register' ? 'border-emerald-400 ring-1 ring-emerald-400/30' : 'border-border'
-              )}
-            >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.25rem] bg-emerald-100 text-emerald-700 transition-transform group-hover:scale-110 dark:bg-emerald-950/40 dark:text-emerald-300">
-                <UserPlus size={20} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-foreground">Register New Child</p>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">Add a new candidate to the centre</p>
-              </div>
-              <ChevronRight size={16} className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />
-            </button>
+      {workerStatus === 'absent' && (
+        <section className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-900 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-200">
+          <XCircle size={20} className="mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-bold">Worker marked absent</p>
+            <p className="mt-1 text-sm text-red-800/80 dark:text-red-200/80">
+              Switch to present when you are ready to record child attendance.
+            </p>
+          </div>
+        </section>
+      )}
 
-            <button
-              type="button"
-              onClick={openMetricsDrawer}
-              className={cn(
-                'group flex items-center gap-4 rounded-2xl border bg-card p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg',
-                activeFlow === 'track' ? 'border-sky-400 ring-1 ring-sky-400/30' : 'border-border'
-              )}
-            >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.25rem] bg-sky-100 text-sky-700 transition-transform group-hover:scale-110 dark:bg-sky-950/40 dark:text-sky-300">
-                <ClipboardList size={20} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-foreground">Track Child Metrics</p>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">Update growth & nutrition data</p>
-              </div>
-              <ChevronRight size={16} className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />
-            </button>
-          </motion.section>
-        )}
-      </AnimatePresence>
-
-      {/* ─── Student Attendance Cards ─── */}
-      <section className="rounded-[2rem] border border-border bg-card shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">
-              <Users size={18} />
-            </div>
+      <section className="rounded-2xl border border-border bg-card shadow-sm">
+        <div className="border-b border-border p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h3 className="text-lg font-bold text-foreground">Student Attendance</h3>
-              <p className="text-xs text-muted-foreground">Tap a child to toggle present / absent</p>
+              <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                <Users size={18} />
+                Children
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">Tap a child to switch between present and absent.</p>
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button type="button" variant="outline" className="rounded-xl" onClick={markAllPresent} disabled={childControlsDisabled}>
+                <CheckCircle2 size={16} />
+                All present
+              </Button>
+              <Button type="button" variant="outline" className="rounded-xl" onClick={markAllAbsent} disabled={childControlsDisabled}>
+                <XCircle size={16} />
+                All absent
+              </Button>
+              <Button type="button" className="rounded-xl" onClick={saveAttendanceSnapshot} disabled={childControlsDisabled}>
+                <ClipboardCheck size={16} />
+                Save
+              </Button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1 sm:w-56 sm:flex-none">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative w-full sm:max-w-sm">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search by name..."
                 value={studentSearch}
-                onChange={(e) => setStudentSearch(e.target.value)}
-                className="h-9 rounded-xl pl-8 text-xs"
+                onChange={(event) => setStudentSearch(event.target.value)}
+                placeholder="Search child, parent, or phone"
+                className="pl-9"
               />
             </div>
-            <div className="flex gap-1">
-              <button
-                type="button"
-                onClick={markAllPresent}
-                className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 transition-colors hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
-              >
-                All ✓
-              </button>
-              <button
-                type="button"
-                onClick={markAllAbsent}
-                className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-red-700 transition-colors hover:bg-red-100 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"
-              >
-                All ✗
-              </button>
-            </div>
+            {savedAt && (
+              <div className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
+                <CheckCircle2 size={14} />
+                Saved at {savedAt}
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredAttendance.map((child, index) => {
-            const isPresent = child.present;
+        <div className="divide-y divide-border">
+          {filteredAttendance.map((entry) => {
+            const child = childById.get(entry.id);
+            const isPresent = entry.present;
+
             return (
-              <motion.button
-                key={child.id}
-                type="button"
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.03 }}
-                onClick={() =>
-                  setAttendance((current) =>
-                    current.map((entry) => (entry.id === child.id ? { ...entry, present: !entry.present } : entry))
-                  )
-                }
-                className={cn(
-                  'group flex items-center gap-3 rounded-2xl border p-3.5 text-left transition-all active:scale-[0.98]',
-                  isPresent
-                    ? 'border-emerald-200/80 bg-emerald-50/50 hover:bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/15 dark:hover:bg-emerald-950/25'
-                    : 'border-red-200/60 bg-red-50/30 hover:bg-red-50/60 dark:border-red-900/40 dark:bg-red-950/10 dark:hover:bg-red-950/20'
-                )}
-              >
-                {/* Avatar */}
-                <div
-                  className={cn(
-                    'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-colors',
-                    isPresent
-                      ? 'bg-emerald-200 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200'
-                      : 'bg-red-200/60 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                  )}
-                >
-                  {child.name.charAt(0)}
+              <div key={entry.id} className="grid gap-3 p-4 md:grid-cols-[1fr_auto] md:items-center">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div
+                    className={cn(
+                      'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold',
+                      isPresent
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                        : 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300'
+                    )}
+                  >
+                    {entry.name.charAt(0)}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-foreground">{entry.name}</p>
+                    </div>
+                    {child && (
+                      <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        <span>{child.ageLabel} / {child.gender}</span>
+                        <span>{child.parentName}</span>
+                        <span className="flex items-center gap-1">
+                          <Phone size={12} />
+                          {child.phoneNumber}
+                        </span>
+                      </p>
+                    )}
+                  </div>
                 </div>
 
-                {/* Name */}
-                <span className="flex-1 truncate text-sm font-semibold text-foreground">{child.name}</span>
+                <div className="grid gap-2 sm:grid-cols-[140px_1fr] md:min-w-[340px]">
+                  <button
+                    type="button"
+                    onClick={() => toggleStudentAttendance(entry.id)}
+                    disabled={childControlsDisabled}
+                    className={cn(
+                      'flex h-10 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                      isPresent
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300'
+                        : 'border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300'
+                    )}
+                  >
+                    {isPresent ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+                    {isPresent ? 'Present' : 'Absent'}
+                  </button>
 
-                {/* Status Chip */}
-                <span
-                  className={cn(
-                    'shrink-0 rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors',
-                    isPresent
-                      ? 'bg-emerald-200/80 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300'
-                      : 'bg-red-200/60 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                  {!isPresent ? (
+                    <select
+                      value={absenceReasons[entry.id] ?? 'Illness'}
+                      onChange={(event) => updateAbsenceReason(entry.id, event.target.value)}
+                      disabled={childControlsDisabled}
+                      className="h-10 rounded-xl border border-input bg-background px-3 text-sm font-medium text-foreground shadow-sm outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {absenceReasonOptions.map((reason) => (
+                        <option key={reason} value={reason}>{reason}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="hidden h-10 items-center rounded-xl border border-border bg-muted/30 px-3 text-sm text-muted-foreground sm:flex">
+                      No follow-up needed
+                    </div>
                   )}
-                >
-                  {isPresent ? '✓ Present' : '✗ Absent'}
-                </span>
-              </motion.button>
+                </div>
+              </div>
             );
           })}
+
           {filteredAttendance.length === 0 && (
-            <div className="col-span-full py-10 text-center text-sm text-muted-foreground">
-              No students match "{studentSearch}"
+            <div className="p-10 text-center">
+              <Search size={28} className="mx-auto text-muted-foreground/50" />
+              <p className="mt-3 text-sm font-medium text-foreground">No children found</p>
+              <p className="mt-1 text-sm text-muted-foreground">Try another search term.</p>
             </div>
           )}
         </div>
       </section>
 
-      {/* ─── Monthly Trend Chart ─── */}
-      <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
-        <div className="flex items-center justify-between">
+      <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-lg font-bold text-foreground">Monthly Attendance Trend</h3>
-            <p className="mt-1 text-xs text-muted-foreground">Centre-wide attendance percentage over the past 6 months</p>
+            <h3 className="text-base font-semibold text-foreground">Follow-up list</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Absent children appear here for parent contact.</p>
           </div>
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300">
-            <BarChart3 size={18} />
-          </div>
-        </div>
-        <div className="mt-5 h-[280px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={monthlyAttendanceTrend} barCategoryGap="24%">
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }} />
-              <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} unit="%" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--card))',
-                  borderRadius: '1rem',
-                  border: '1px solid hsl(var(--border))',
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                }}
-                cursor={{ fill: 'hsl(var(--muted) / 0.3)' }}
-              />
-              <Bar dataKey="attendance" radius={[10, 10, 4, 4]} fill="#14b8a6" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
-
-      {/* ─── Date-Wise Attendance History ─── */}
-      <section className="rounded-[2rem] border border-border bg-card shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-border p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
-              <History size={18} />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-foreground">Attendance History</h3>
-              <p className="text-xs text-muted-foreground">Complete date-wise attendance record · Nov 2025 – Apr 2026</p>
-            </div>
-          </div>
+          <span className="w-max rounded-full border border-border px-3 py-1 text-sm font-medium text-foreground">
+            {absentEntries.length} absent
+          </span>
         </div>
 
-        {/* Month tabs */}
-        <div className="flex gap-1.5 overflow-x-auto border-b border-border px-4 py-3">
-          {consolidatedAttendanceHistory.map((block, idx) => (
-            <button
-              key={block.monthKey}
-              onClick={() => { setHistoryMonthIndex(idx); setExpandedHistoryDate(null); }}
-              className={cn(
-                'shrink-0 rounded-xl px-3.5 py-2 text-xs font-bold uppercase tracking-wider transition-all',
-                historyMonthIndex === idx
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-              )}
-            >
-              {block.monthKey}
-            </button>
-          ))}
-        </div>
-
-        {/* Month summary */}
-        <div className="grid gap-3 p-4 sm:grid-cols-3">
-          <div className="rounded-2xl border border-border bg-background/70 p-3.5 text-center">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Working Days</p>
-            <p className="mt-1 text-xl font-bold text-foreground">{selectedMonthBlock.workingDays}</p>
-          </div>
-          <div className="rounded-2xl border border-border bg-background/70 p-3.5 text-center">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Total Days</p>
-            <p className="mt-1 text-xl font-bold text-foreground">{selectedMonthBlock.dates.length}</p>
-          </div>
-          <div className="rounded-2xl border border-border bg-background/70 p-3.5 text-center">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Overall Attendance</p>
-            <p className={cn(
-              'mt-1 text-xl font-bold',
-              selectedMonthBlock.overallPercent >= 85 ? 'text-emerald-600' : selectedMonthBlock.overallPercent >= 70 ? 'text-amber-600' : 'text-red-600'
-            )}>
-              {selectedMonthBlock.overallPercent}%
-            </p>
-          </div>
-        </div>
-
-        {/* Per-student monthly stats */}
-        <div className="border-t border-border px-4 py-4">
-          <h4 className="mb-3 text-sm font-bold text-foreground">Student Summary — {selectedMonthBlock.monthKey}</h4>
-          <div className="space-y-2">
-            {selectedMonthBlock.stats.map((stat) => {
-              const tone = stat.percent >= 85 ? 'emerald' : stat.percent >= 70 ? 'amber' : 'red';
+        {absentEntries.length > 0 ? (
+          <div className="mt-4 grid gap-2 md:grid-cols-2">
+            {absentEntries.map((entry) => {
+              const child = childById.get(entry.id);
               return (
-                <div key={stat.childId} className="flex items-center gap-3 rounded-xl border border-border bg-background/50 px-3 py-2.5">
-                  <div className={cn(
-                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold',
-                    tone === 'emerald' && 'bg-emerald-200 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200',
-                    tone === 'amber' && 'bg-amber-200 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200',
-                    tone === 'red' && 'bg-red-200 text-red-800 dark:bg-red-900/60 dark:text-red-200',
-                  )}>
-                    {stat.childName.charAt(0)}
-                  </div>
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{stat.childName}</span>
-                  <div className="flex items-center gap-3">
-                    <div className="hidden items-center gap-1.5 text-[10px] font-semibold text-muted-foreground sm:flex">
-                      <span className="text-emerald-600 dark:text-emerald-400">{stat.present}P</span>
-                      <span>·</span>
-                      <span className="text-red-600 dark:text-red-400">{stat.absent}A</span>
-                    </div>
-                    {/* Mini progress bar */}
-                    <div className="h-2 w-20 overflow-hidden rounded-full bg-muted/50">
-                      <div
-                        className={cn(
-                          'h-full rounded-full transition-all',
-                          tone === 'emerald' && 'bg-emerald-500',
-                          tone === 'amber' && 'bg-amber-500',
-                          tone === 'red' && 'bg-red-500',
-                        )}
-                        style={{ width: `${stat.percent}%` }}
-                      />
-                    </div>
-                    <span className={cn(
-                      'w-10 text-right text-xs font-bold',
-                      tone === 'emerald' && 'text-emerald-600',
-                      tone === 'amber' && 'text-amber-600',
-                      tone === 'red' && 'text-red-600',
-                    )}>
-                      {stat.percent}%
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Date-wise records */}
-        <div className="border-t border-border px-4 py-4">
-          <h4 className="mb-3 text-sm font-bold text-foreground">Day-by-Day Records</h4>
-          <div className="mb-3 flex items-center justify-center gap-5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-emerald-400" /> Present</span>
-            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-red-400" /> Absent</span>
-            <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-sm bg-slate-300 dark:bg-slate-600" /> Holiday</span>
-          </div>
-          <div className="max-h-[480px] space-y-1.5 overflow-y-auto pr-1">
-            {[...selectedMonthBlock.dates].reverse().map((rec) => {
-              const dateObj = new Date(rec.date);
-              const dayNum = dateObj.getDate();
-              const isExpanded = expandedHistoryDate === rec.date;
-              const presentCount = rec.holiday ? 0 : Object.values(rec.childStatus).filter(Boolean).length;
-              const totalCount = managedChildren.length;
-
-              return (
-                <div key={rec.date}>
-                  <button
-                    type="button"
-                    onClick={() => !rec.holiday && setExpandedHistoryDate(isExpanded ? null : rec.date)}
-                    className={cn(
-                      'flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-all',
-                      rec.holiday
-                        ? 'border-slate-200 bg-slate-50/60 dark:border-slate-800 dark:bg-slate-900/30 cursor-default'
-                        : isExpanded
-                          ? 'border-primary/30 bg-primary/5'
-                          : 'border-border bg-background/50 hover:bg-accent/50 cursor-pointer'
-                    )}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        'flex h-9 w-9 flex-col items-center justify-center rounded-lg text-[10px] font-bold',
-                        rec.holiday
-                          ? 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500'
-                          : 'bg-primary/10 text-primary'
-                      )}>
-                        <span className="text-sm">{dayNum}</span>
-                        <span className="text-[8px] font-semibold opacity-60">{rec.dayName}</span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">
-                          {dateObj.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {rec.holiday ? 'Holiday (Sunday)' : `${presentCount}/${totalCount} present`}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {rec.holiday ? (
-                        <span className="rounded-md bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300">HOLIDAY</span>
-                      ) : (
-                        <>
-                          {/* Mini dot indicators */}
-                          <div className="hidden gap-1 sm:flex">
-                            {managedChildren.map((child) => (
-                              <div
-                                key={child.id}
-                                title={`${child.name}: ${rec.childStatus[child.id] ? 'Present' : 'Absent'}`}
-                                className={cn(
-                                  'h-2.5 w-2.5 rounded-full',
-                                  rec.childStatus[child.id] ? 'bg-emerald-400' : 'bg-red-400'
-                                )}
-                              />
-                            ))}
-                          </div>
-                          {isExpanded ? <ChevronUp size={14} className="text-muted-foreground" /> : <ChevronDown size={14} className="text-muted-foreground" />}
-                        </>
-                      )}
-                    </div>
-                  </button>
-
-                  {/* Expanded details */}
-                  <AnimatePresence>
-                    {isExpanded && !rec.holiday && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="overflow-hidden"
-                      >
-                        <div className="mt-1 grid gap-1.5 rounded-xl border border-border bg-card p-3 sm:grid-cols-2 lg:grid-cols-3">
-                          {managedChildren.map((child) => {
-                            const isPresent = rec.childStatus[child.id];
-                            return (
-                              <div
-                                key={child.id}
-                                className={cn(
-                                  'flex items-center gap-2.5 rounded-lg px-3 py-2',
-                                  isPresent
-                                    ? 'bg-emerald-50/80 dark:bg-emerald-950/15'
-                                    : 'bg-red-50/80 dark:bg-red-950/15'
-                                )}
-                              >
-                                <div className={cn(
-                                  'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold',
-                                  isPresent
-                                    ? 'bg-emerald-200 text-emerald-800 dark:bg-emerald-800 dark:text-emerald-200'
-                                    : 'bg-red-200 text-red-800 dark:bg-red-800 dark:text-red-200'
-                                )}>
-                                  {child.name.charAt(0)}
-                                </div>
-                                <span className="flex-1 truncate text-xs font-medium text-foreground">{child.name}</span>
-                                <span className={cn(
-                                  'rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase',
-                                  isPresent
-                                    ? 'bg-emerald-200/80 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300'
-                                    : 'bg-red-200/60 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                                )}>
-                                  {isPresent ? '✓ Present' : '✗ Absent'}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Low-attendance alerts */}
-        {selectedMonthBlock.stats.some((s) => s.percent < 75) && (
-          <div className="border-t border-border p-4">
-            <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4 dark:border-red-900 dark:bg-red-950/20">
-              <p className="flex items-center gap-2 text-sm font-bold text-red-700 dark:text-red-300">
-                <AlertTriangle size={16} />
-                Low Attendance Alert — {selectedMonthBlock.monthKey}
-              </p>
-              <div className="mt-2 space-y-1">
-                {selectedMonthBlock.stats.filter((s) => s.percent < 75).map((s) => (
-                  <p key={s.childId} className="text-xs text-red-600 dark:text-red-400">
-                    • {s.childName} — {s.percent}% ({s.present}/{selectedMonthBlock.workingDays} days). Consider scheduling a home visit.
+                <div key={entry.id} className="rounded-xl border border-red-100 bg-red-50/50 p-3 dark:border-red-900/40 dark:bg-red-950/10">
+                  <p className="text-sm font-semibold text-foreground">{entry.name}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {absenceReasons[entry.id] ?? 'Illness'}{child ? ` / ${child.parentName} / ${child.phoneNumber}` : ''}
                   </p>
-                ))}
-              </div>
-            </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50/60 p-4 text-sm text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
+            Everyone is marked present.
           </div>
         )}
       </section>
-
-      {/* ═══ Registration Drawer ═══ */}
-      <SideDrawer
-        open={registrationOpen}
-        onOpenChange={setRegistrationOpen}
-        title="Register New Child"
-        description="Add a child record without leaving the attendance screen."
-        className="sm:max-w-3xl"
-        footer={
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground">
-              New children are marked present for today and opened in metric tracking after save.
-            </p>
-            <div className="flex justify-end gap-3">
-              <Button type="button" variant="outline" onClick={() => setRegistrationOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" form="attendance-registration-form">
-                Register Child
-              </Button>
-            </div>
-          </div>
-        }
-      >
-        <form id="attendance-registration-form" onSubmit={(event) => { event.preventDefault(); handleRegisterCandidate(); }} className="space-y-5">
-          <div className="rounded-2xl border border-border bg-muted/30 p-1">
-            <div className="grid gap-1 sm:grid-cols-3">
-              {[
-                { label: 'Profile', icon: UserPlus },
-                { label: 'Guardian', icon: Phone },
-                { label: 'Baseline', icon: Scale },
-              ].map((step) => (
-                <div
-                  key={step.label}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-card px-3 py-2 text-xs font-bold uppercase tracking-wider text-foreground shadow-sm"
-                >
-                  <step.icon size={14} className="text-primary" />
-                  {step.label}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <AttendanceFormSection
-            icon={UserPlus}
-            title="Child Profile"
-            description="Core identity fields used across attendance, nutrition, and development tracking."
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <AttendanceFormField label="Child Name" error={registrationErrors.name}>
-                <Input
-                  value={registrationForm.name}
-                  onChange={(event) => setRegistrationForm((current) => ({ ...current, name: event.target.value }))}
-                  placeholder="Enter child name"
-                />
-              </AttendanceFormField>
-
-              <AttendanceFormField label="Date of Birth" error={registrationErrors.dob}>
-                <Input
-                  type="date"
-                  value={registrationForm.dob}
-                  onChange={(event) => setRegistrationForm((current) => ({ ...current, dob: event.target.value }))}
-                />
-              </AttendanceFormField>
-
-              <AttendanceFormField label="Gender" error={registrationErrors.gender}>
-                <Select value={registrationForm.gender} onValueChange={(value: 'Male' | 'Female') => setRegistrationForm((current) => ({ ...current, gender: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Male">Male</SelectItem>
-                    <SelectItem value="Female">Female</SelectItem>
-                  </SelectContent>
-                </Select>
-              </AttendanceFormField>
-
-              <AttendanceFormField label="Calculated Age">
-                <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm font-medium text-muted-foreground">
-                  {registrationForm.dob ? getAgeLabel(registrationForm.dob) : 'Select date of birth'}
-                </div>
-              </AttendanceFormField>
-            </div>
-          </AttendanceFormSection>
-
-          <AttendanceFormSection
-            icon={Phone}
-            title="Guardian Details"
-            description="Contact information for service updates, visits, and parent engagement."
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <AttendanceFormField label="Parent Name" error={registrationErrors.parentName}>
-                <Input
-                  value={registrationForm.parentName}
-                  onChange={(event) => setRegistrationForm((current) => ({ ...current, parentName: event.target.value }))}
-                  placeholder="Enter parent name"
-                />
-              </AttendanceFormField>
-
-              <AttendanceFormField label="Phone Number" error={registrationErrors.phoneNumber}>
-                <Input
-                  value={registrationForm.phoneNumber}
-                  onChange={(event) => setRegistrationForm((current) => ({ ...current, phoneNumber: event.target.value.replace(/\D/g, '').slice(0, 10) }))}
-                  placeholder="10-digit mobile number"
-                />
-              </AttendanceFormField>
-            </div>
-          </AttendanceFormSection>
-
-          <AttendanceFormSection
-            icon={ClipboardList}
-            title="Health Baseline"
-            description="Starting values used when today's attendance registration opens metric tracking."
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <AttendanceFormField label="Birth Weight" error={registrationErrors.birthWeight}>
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={registrationForm.birthWeight}
-                  onChange={(event) => setRegistrationForm((current) => ({ ...current, birthWeight: event.target.value }))}
-                  placeholder="Weight in kg"
-                />
-              </AttendanceFormField>
-
-              <AttendanceFormField label="Nutrition Status">
-                <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm font-medium text-muted-foreground">
-                  Normal
-                </div>
-              </AttendanceFormField>
-            </div>
-          </AttendanceFormSection>
-        </form>
-      </SideDrawer>
-
-      {/* ═══ Metrics Drawer — Tabbed ═══ */}
-      <SideDrawer
-        open={metricsOpen}
-        onOpenChange={(open) => { setMetricsOpen(open); if (!open) setMetricsTab('intake'); }}
-        title="Track Child Metrics"
-        description="Monthly growth intake, history, and AI-powered insights."
-        footer={
-          metricsTab === 'intake' ? (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-muted-foreground">Last updated: {selectedMetrics.lastUpdated}</p>
-              <Button type="button" onClick={() => updateSelectedMetrics({ lastUpdated: '2026-04-23' })}>
-                Save Metrics
-              </Button>
-            </div>
-          ) : null
-        }
-      >
-        <div className="space-y-5">
-          {/* Child selector */}
-          <div>
-            <label className="text-sm font-medium text-foreground">Select Child</label>
-            <Select value={selectedChildId} onValueChange={setSelectedChildId}>
-              <SelectTrigger className="mt-2 h-12 rounded-2xl">
-                <SelectValue placeholder="Select child" />
-              </SelectTrigger>
-              <SelectContent>
-                {children.map((child) => (
-                  <SelectItem key={child.id} value={child.id}>
-                    {child.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Child info badge */}
-          <div className="rounded-[1.5rem] border border-border bg-card p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg font-bold text-foreground">{selectedChild?.name}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {selectedChild?.ageLabel} · {selectedChild?.gender} · Parent: {selectedChild?.parentName}
-                </p>
-              </div>
-              <Badge variant="outline" className={cn('rounded-full px-3 py-1', getMetricStatusClass(selectedMetrics.nutritionStatus))}>
-                {selectedMetrics.nutritionStatus}
-              </Badge>
-            </div>
-          </div>
-
-          {/* ─── Tabs ─── */}
-          <Tabs.Root value={metricsTab} onValueChange={(v) => setMetricsTab(v as typeof metricsTab)}>
-            <Tabs.List className="flex gap-1 rounded-2xl border border-border bg-muted/30 p-1">
-              {[
-                { value: 'intake' as const, label: 'Record Intake', icon: Scale },
-                { value: 'history' as const, label: 'Growth History', icon: LineChartIcon },
-                { value: 'insights' as const, label: 'AI Insights', icon: Sparkles },
-              ].map((tab) => (
-                <Tabs.Trigger
-                  key={tab.value}
-                  value={tab.value}
-                  className={cn(
-                    'flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold uppercase tracking-wider transition-all',
-                    metricsTab === tab.value
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  <tab.icon size={13} />
-                  <span className="hidden sm:inline">{tab.label}</span>
-                  <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
-                </Tabs.Trigger>
-              ))}
-            </Tabs.List>
-
-            {/* ── Tab: Record Intake ── */}
-            <Tabs.Content value="intake" className="mt-5 space-y-5">
-              {/* Quick stat chips */}
-              <div className="grid gap-3 sm:grid-cols-3">
-                {[
-                  { label: 'BMI', value: bmi, icon: BarChart3 },
-                  { label: 'MUAC', value: `${selectedMetrics.muac} cm`, icon: Ruler },
-                  { label: 'Attendance', value: `${selectedMetrics.attendanceRate}%`, icon: CalendarCheck2 },
-                ].map((metric) => (
-                  <div key={metric.label} className="rounded-[1.25rem] border border-border bg-card p-3">
-                    <metric.icon size={14} className="text-primary" />
-                    <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{metric.label}</p>
-                    <p className="mt-0.5 text-lg font-bold text-foreground">{metric.value}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Form fields */}
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Weight (kg)</label>
-                  <div className="relative">
-                    <Scale size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input type="number" step="0.1" className="pl-9" value={selectedMetrics.weight} onChange={(event) => updateSelectedMetrics({ weight: event.target.value })} />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Height (cm)</label>
-                  <div className="relative">
-                    <Ruler size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input type="number" step="0.1" className="pl-9" value={selectedMetrics.height} onChange={(event) => updateSelectedMetrics({ height: event.target.value })} />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">MUAC (cm)</label>
-                  <Input type="number" step="0.1" value={selectedMetrics.muac} onChange={(event) => updateSelectedMetrics({ muac: event.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Learning Score (%)</label>
-                  <Input type="number" value={selectedMetrics.learningScore} onChange={(event) => updateSelectedMetrics({ learningScore: event.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Attendance Rate (%)</label>
-                  <Input type="number" value={selectedMetrics.attendanceRate} onChange={(event) => updateSelectedMetrics({ attendanceRate: event.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Nutrition Status</label>
-                  <Select value={selectedMetrics.nutritionStatus} onValueChange={(value: ChildMetrics['nutritionStatus']) => updateSelectedMetrics({ nutritionStatus: value })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Normal">Normal</SelectItem>
-                      <SelectItem value="Moderate">Moderate</SelectItem>
-                      <SelectItem value="Severe">Severe</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-medium text-foreground">Notes</label>
-                  <textarea
-                    value={selectedMetrics.notes}
-                    onChange={(event) => updateSelectedMetrics({ notes: event.target.value })}
-                    className="min-h-24 w-full rounded-2xl border border-input bg-transparent px-3 py-3 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"
-                  />
-                </div>
-              </div>
-            </Tabs.Content>
-
-            {/* ── Tab: Growth History ── */}
-            <Tabs.Content value="history" className="mt-5 space-y-5">
-              {childIntakeHistory.length === 0 ? (
-                <div className="rounded-2xl border border-border bg-muted/20 py-12 text-center">
-                  <History size={32} className="mx-auto text-muted-foreground/40" />
-                  <p className="mt-3 text-sm text-muted-foreground">No monthly intake records found for this child.</p>
-                </div>
-              ) : (
-                <>
-                  {/* Growth chart */}
-                  <div className="rounded-2xl border border-border bg-card p-4">
-                    <h4 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
-                      <TrendingUp size={14} className="text-primary" />
-                      Growth Trend (6 months)
-                    </h4>
-                    <div className="h-[220px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={childIntakeHistory}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                          <XAxis
-                            dataKey="month"
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10, fontWeight: 500 }}
-                          />
-                          <YAxis
-                            yAxisId="weight"
-                            orientation="left"
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                            domain={['dataMin - 1', 'dataMax + 1']}
-                            unit="kg"
-                          />
-                          <YAxis
-                            yAxisId="height"
-                            orientation="right"
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                            domain={['dataMin - 2', 'dataMax + 2']}
-                            unit="cm"
-                          />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: 'hsl(var(--card))',
-                              borderRadius: '0.75rem',
-                              border: '1px solid hsl(var(--border))',
-                              fontSize: '12px',
-                              fontWeight: 500,
-                            }}
-                          />
-                          <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 600 }} />
-                          <Line yAxisId="weight" type="monotone" dataKey="weight" name="Weight (kg)" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3, fill: '#10b981' }} />
-                          <Line yAxisId="height" type="monotone" dataKey="height" name="Height (cm)" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 3, fill: '#3b82f6' }} />
-                          <Line yAxisId="weight" type="monotone" dataKey="muac" name="MUAC (cm)" stroke="#f59e0b" strokeWidth={2} dot={{ r: 2.5, fill: '#f59e0b' }} strokeDasharray="5 3" />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-
-                  {/* Learning & Attendance mini chart */}
-                  <div className="rounded-2xl border border-border bg-card p-4">
-                    <h4 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
-                      <BarChart3 size={14} className="text-primary" />
-                      Learning & Attendance Trend
-                    </h4>
-                    <div className="h-[160px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={childIntakeHistory} barCategoryGap="18%">
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                          <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
-                          <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} unit="%" />
-                          <Tooltip
-                            contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '0.75rem', border: '1px solid hsl(var(--border))', fontSize: '12px' }}
-                          />
-                          <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 600 }} />
-                          <Bar dataKey="learningScore" name="Learning" fill="#8b5cf6" radius={[6, 6, 0, 0]} />
-                          <Bar dataKey="attendanceRate" name="Attendance" fill="#06b6d4" radius={[6, 6, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-
-                  {/* Monthly cards */}
-                  <div>
-                    <h4 className="mb-3 text-sm font-bold text-foreground">Monthly Records</h4>
-                    <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
-                      {[...childIntakeHistory].reverse().map((intake) => {
-                        const statusTone = intake.nutritionStatus === 'Normal' ? 'emerald' : intake.nutritionStatus === 'Moderate' ? 'amber' : 'red';
-                        return (
-                          <div key={intake.date} className="rounded-2xl border border-border bg-card p-3.5">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-bold text-foreground">{intake.month}</span>
-                              <Badge variant="outline" className={cn('rounded-full px-2 py-0.5 text-[10px]', getMetricStatusClass(intake.nutritionStatus))}>
-                                {intake.nutritionStatus}
-                              </Badge>
-                            </div>
-                            <div className="mt-2.5 grid grid-cols-4 gap-2">
-                              {[
-                                { l: 'Weight', v: `${intake.weight}kg` },
-                                { l: 'Height', v: `${intake.height}cm` },
-                                { l: 'MUAC', v: `${intake.muac}cm` },
-                                { l: 'BMI', v: `${intake.bmi}` },
-                              ].map((d) => (
-                                <div key={d.l} className="text-center">
-                                  <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">{d.l}</p>
-                                  <p className="text-xs font-bold text-foreground">{d.v}</p>
-                                </div>
-                              ))}
-                            </div>
-                            <div className="mt-2 grid grid-cols-2 gap-2">
-                              <div className="rounded-lg bg-violet-50 px-2 py-1 text-center dark:bg-violet-950/20">
-                                <p className="text-[9px] font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">Learning</p>
-                                <p className="text-xs font-bold text-violet-700 dark:text-violet-300">{intake.learningScore}%</p>
-                              </div>
-                              <div className="rounded-lg bg-cyan-50 px-2 py-1 text-center dark:bg-cyan-950/20">
-                                <p className="text-[9px] font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">Attendance</p>
-                                <p className="text-xs font-bold text-cyan-700 dark:text-cyan-300">{intake.attendanceRate}%</p>
-                              </div>
-                            </div>
-                            {intake.notes && (
-                              <p className="mt-2 text-[11px] italic text-muted-foreground">"{intake.notes}"</p>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </>
-              )}
-            </Tabs.Content>
-
-            {/* ── Tab: AI Insights ── */}
-            <Tabs.Content value="insights" className="mt-5 space-y-4">
-              <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 dark:bg-primary/10">
-                <p className="flex items-center gap-2 text-sm font-bold text-foreground">
-                  <Sparkles size={16} className="text-primary" />
-                  Growth Analysis for {selectedChild?.name}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Based on {childIntakeHistory.length} monthly intake records from {childIntakeHistory[0]?.month ?? 'N/A'} to {childIntakeHistory[childIntakeHistory.length - 1]?.month ?? 'N/A'}.
-                </p>
-              </div>
-
-              {childGrowthInsights.map((insight) => {
-                const iconMap = {
-                  positive: CheckCircle2,
-                  warning: AlertTriangle,
-                  critical: XCircle,
-                  info: Info,
-                };
-                const colorMap = {
-                  positive: 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/20',
-                  warning: 'border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/20',
-                  critical: 'border-red-200 bg-red-50/70 dark:border-red-900 dark:bg-red-950/20',
-                  info: 'border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/20',
-                };
-                const iconColorMap = {
-                  positive: 'text-emerald-600 dark:text-emerald-400',
-                  warning: 'text-amber-600 dark:text-amber-400',
-                  critical: 'text-red-600 dark:text-red-400',
-                  info: 'text-sky-600 dark:text-sky-400',
-                };
-                const titleColorMap = {
-                  positive: 'text-emerald-800 dark:text-emerald-300',
-                  warning: 'text-amber-800 dark:text-amber-300',
-                  critical: 'text-red-800 dark:text-red-300',
-                  info: 'text-sky-800 dark:text-sky-300',
-                };
-                const Icon = iconMap[insight.type];
-                return (
-                  <motion.div
-                    key={insight.id}
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className={cn('rounded-2xl border p-4', colorMap[insight.type])}
-                  >
-                    <p className={cn('flex items-center gap-2 text-sm font-bold', titleColorMap[insight.type])}>
-                      <Icon size={16} className={iconColorMap[insight.type]} />
-                      {insight.title}
-                    </p>
-                    <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                      {insight.description}
-                    </p>
-                    {insight.metric && (
-                      <span className="mt-2 inline-block rounded-md bg-background/50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                        {insight.metric}
-                      </span>
-                    )}
-                  </motion.div>
-                );
-              })}
-            </Tabs.Content>
-          </Tabs.Root>
-        </div>
-      </SideDrawer>
-    </div>
-  );
-}
-
-function AttendanceFormSection({
-  icon: Icon,
-  title,
-  description,
-  children,
-}: {
-  icon: typeof UserPlus;
-  title: string;
-  description: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="rounded-2xl border border-border bg-card">
-      <div className="border-b border-border px-4 py-3">
-        <div className="flex items-start gap-3">
-          <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Icon size={17} />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-foreground">{title}</h3>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
-          </div>
-        </div>
-      </div>
-      <div className="p-4">{children}</div>
-    </section>
-  );
-}
-
-function AttendanceFormField({
-  label,
-  error,
-  children,
-}: {
-  label: string;
-  error?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="space-y-2">
-      <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</label>
-      {children}
-      {error ? <p className="text-xs font-medium text-red-500">{error}</p> : null}
     </div>
   );
 }

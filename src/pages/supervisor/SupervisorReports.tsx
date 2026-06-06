@@ -1,17 +1,41 @@
 import { useState } from 'react';
-import { useTranslation } from '../../hooks/useTranslation';
 import { mockAWCs } from '../../data/mockData';
-import { FileText, Download, Building2, AlertTriangle, CheckCircle2, ChevronRight } from 'lucide-react';
+import { FileText, Download, Building2, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { cn } from '../../utils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { downloadCsv, downloadExcelHtml } from '../../utils/exportFiles';
 
 export function SupervisorReports() {
-  const { t } = useTranslation();
   const [selectedAWC, setSelectedAWC] = useState<string>('all');
   const [isGenerating, setIsGenerating] = useState(false);
 
   const filteredAWCs = selectedAWC === 'all' ? mockAWCs : mockAWCs.filter(a => a.id === selectedAWC);
+
+  const buildExportRows = () => filteredAWCs.map((awc) => ({
+    awc_id: awc.id,
+    centre_name: awc.name,
+    worker_name: awc.workerName,
+    block_id: awc.blockId,
+    total_children: awc.totalChildren,
+    present_today: awc.presentToday,
+    attendance_rate_percent: awc.attendanceRate,
+    normal_nutrition: awc.nutritionBreakdown.normal,
+    mam_cases: awc.nutritionBreakdown.mam,
+    sam_cases: awc.nutritionBreakdown.sam,
+    critical_cases: awc.criticalCases,
+    avg_learning_score: awc.avgLearningScore,
+    sync_status: awc.syncStatus,
+    active_alerts: awc.alerts.join(' | ') || 'None',
+  }));
+
+  const exportCsv = () => {
+    downloadCsv(`supervisor-awc-report-${selectedAWC === 'all' ? 'block' : selectedAWC}.csv`, buildExportRows());
+  };
+
+  const exportExcel = () => {
+    downloadExcelHtml(`supervisor-awc-report-${selectedAWC === 'all' ? 'block' : selectedAWC}.xls`, buildExportRows());
+  };
 
   const handleGeneratePDF = () => {
     setIsGenerating(true);
@@ -56,7 +80,7 @@ export function SupervisorReports() {
           headStyles: { fillColor: [16, 185, 129] },
           margin: { top: 10 }
         });
-        // @ts-ignore
+        // @ts-expect-error jspdf-autotable adds lastAutoTable at runtime.
         currentY = doc.lastAutoTable.finalY + 15;
 
         // Section: Health & Growth
@@ -72,7 +96,7 @@ export function SupervisorReports() {
           theme: 'grid',
           headStyles: { fillColor: [56, 189, 248] },
         });
-        // @ts-ignore
+        // @ts-expect-error jspdf-autotable adds lastAutoTable at runtime.
         currentY = doc.lastAutoTable.finalY + 15;
 
         // Section: Nutrition & Learning
@@ -88,7 +112,7 @@ export function SupervisorReports() {
           theme: 'grid',
           headStyles: { fillColor: [245, 158, 11] },
         });
-        // @ts-ignore
+        // @ts-expect-error jspdf-autotable adds lastAutoTable at runtime.
         currentY = doc.lastAutoTable.finalY + 15;
 
         // Active Alerts
@@ -213,6 +237,24 @@ export function SupervisorReports() {
                 )}
                 {isGenerating ? 'Generating PDF...' : 'Download PDF Report'}
               </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={exportCsv}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-xs font-bold text-foreground hover:bg-muted"
+                >
+                  <Download size={16} />
+                  CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={exportExcel}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-3 text-xs font-bold text-foreground hover:bg-muted"
+                >
+                  <FileText size={16} />
+                  Excel
+                </button>
+              </div>
             </div>
           </div>
         </div>

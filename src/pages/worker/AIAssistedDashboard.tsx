@@ -31,7 +31,7 @@ export function AIAssistedDashboard() {
         : child.learningScore < 60
           ? 'Learning score below class target'
           : 'Attendance below steady participation threshold',
-      action: child.riskFlags.nutritionRisk === 'High'
+      action: child.riskFlags.combinedRisk === 'High'
         ? 'Schedule counselling and referral follow-up'
         : child.learningScore < 60
           ? 'Assign guided activity and reassess after session'

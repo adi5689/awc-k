@@ -6,7 +6,10 @@ import { useState, useEffect } from 'react';
 import { mockBlocks, districtKPIs } from '../../data/mockData';
 import { cn, simulateAPI, formatIndianNumber } from '../../utils';
 import { DashboardSkeleton } from '../../components/ui/loading-skeleton';
-import { FileText, Download, Printer, Calendar } from 'lucide-react';
+import { FileText, Download, Printer, Calendar, FileSpreadsheet } from 'lucide-react';
+import { downloadCsv, downloadExcelHtml } from '../../utils/exportFiles';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export function AdminReports() {
   const [loading, setLoading] = useState(true);
@@ -16,6 +19,42 @@ export function AdminReports() {
   }, []);
 
   if (loading) return <DashboardSkeleton />;
+
+  const reportRows = mockBlocks.map((block) => ({
+    block_name: block.name,
+    awcs: block.totalAWCs,
+    children: block.totalChildren,
+    avg_learning_percent: block.avgLearningScore,
+    nutrition_risk_percent: block.nutritionRiskPercent,
+    performance: block.performance,
+    reporting_period: 'January-June 2026',
+    district: 'Kalahandi',
+  }));
+
+  const exportCsv = () => downloadCsv('kalahandi-icds-performance-janjun-2026.csv', reportRows);
+  const exportExcel = () => downloadExcelHtml('kalahandi-icds-performance-janjun-2026.xls', reportRows);
+  const exportPdf = () => {
+    const doc = new jsPDF({ orientation: 'landscape' });
+    doc.setFontSize(18);
+    doc.text('Kalahandi District - ICDS Performance Summary', 14, 18);
+    doc.setFontSize(10);
+    doc.text('Report period: January-June 2026 | Monthly and quarterly NITI ADP-ready extract', 14, 26);
+    autoTable(doc, {
+      startY: 34,
+      head: [['Block Name', 'AWCs', 'Children', 'Avg Learning', 'Nutrition Risk', 'Performance']],
+      body: reportRows.map((row) => [
+        row.block_name,
+        String(row.awcs),
+        String(row.children),
+        `${row.avg_learning_percent}%`,
+        `${row.nutrition_risk_percent}%`,
+        row.performance,
+      ]),
+      theme: 'grid',
+      headStyles: { fillColor: [88, 28, 135] },
+    });
+    doc.save('kalahandi-icds-performance-janjun-2026.pdf');
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -28,10 +67,16 @@ export function AdminReports() {
           <p className="text-sm text-muted-foreground mt-1">District-level performance reports</p>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card text-sm font-medium hover:bg-accent transition-colors">
+          <button onClick={exportCsv} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card text-sm font-medium hover:bg-accent transition-colors">
             <Download size={14} /> Export CSV
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card text-sm font-medium hover:bg-accent transition-colors">
+          <button onClick={exportExcel} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card text-sm font-medium hover:bg-accent transition-colors">
+            <FileSpreadsheet size={14} /> Excel
+          </button>
+          <button onClick={exportPdf} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card text-sm font-medium hover:bg-accent transition-colors">
+            <FileText size={14} /> PDF
+          </button>
+          <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card text-sm font-medium hover:bg-accent transition-colors">
             <Printer size={14} /> Print
           </button>
         </div>
@@ -41,9 +86,16 @@ export function AdminReports() {
       <div className="p-6 rounded-xl border border-border bg-card">
         <div className="flex items-center gap-2 mb-4">
           <Calendar size={16} className="text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Report Period: January – June 2026</span>
+          <span className="text-sm text-muted-foreground">Report Period: January-June 2026</span>
         </div>
-        <h3 className="text-lg font-bold text-foreground mb-4">Ganjam District — ICDS Performance Summary</h3>
+        <h3 className="text-lg font-bold text-foreground mb-4">Kalahandi District - ICDS Performance Summary</h3>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {['Monthly ICDS', 'Quarterly NITI ADP', 'POSHAN nutrition', 'Supervisor follow-up'].map((label) => (
+            <span key={label} className="rounded-full border border-purple-200 bg-purple-50 px-3 py-1 text-xs font-bold text-purple-800 dark:border-purple-900 dark:bg-purple-950/30 dark:text-purple-200">
+              {label}
+            </span>
+          ))}
+        </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

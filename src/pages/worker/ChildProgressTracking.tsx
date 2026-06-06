@@ -68,12 +68,9 @@ export function ChildProgressTracking() {
                 <InfoRow label="Strongest domain" value={`${String(strongestDomain[0]).replace('_', '-')} (${strongestDomain[1]}%)`} />
                 <InfoRow label="Weakest domain" value={`${String(weakestDomain[0]).replace('_', '-')} (${weakestDomain[1]}%)`} />
               </div>
-              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 <span className={cn('rounded-xl border px-3 py-2 text-center text-xs font-bold', riskTone(selectedChild.riskFlags.learningRisk))}>
                   Learning {selectedChild.riskFlags.learningRisk}
-                </span>
-                <span className={cn('rounded-xl border px-3 py-2 text-center text-xs font-bold', riskTone(selectedChild.riskFlags.nutritionRisk))}>
-                  Nutrition {selectedChild.riskFlags.nutritionRisk}
                 </span>
                 <span className={cn('rounded-xl border px-3 py-2 text-center text-xs font-bold', riskTone(selectedChild.riskFlags.combinedRisk))}>
                   Combined {selectedChild.riskFlags.combinedRisk}
@@ -97,16 +94,15 @@ export function ChildProgressTracking() {
                 <LineChart className="text-sky-600 dark:text-sky-300" size={22} />
                 <div>
                   <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Longitudinal tracking</p>
-                  <h3 className="text-xl font-bold text-foreground">Learning, attendance, and nutrition trend</h3>
+                  <h3 className="text-xl font-bold text-foreground">Learning and attendance trend</h3>
                 </div>
               </div>
               <div className="mt-5 space-y-3">
                 {history.map((entry) => (
-                  <div key={entry.date} className="grid gap-3 rounded-2xl border border-border bg-background/60 p-4 md:grid-cols-[90px_1fr_1fr_1fr] md:items-center">
+                  <div key={entry.date} className="grid gap-3 rounded-2xl border border-border bg-background/60 p-4 md:grid-cols-[90px_1fr_1fr] md:items-center">
                     <p className="text-sm font-bold text-foreground">{entry.month}</p>
                     <ProgressLine label="Learning" value={entry.learningScore} tone="bg-sky-500" />
                     <ProgressLine label="Attendance" value={entry.attendanceRate} tone="bg-emerald-500" />
-                    <ProgressLine label={`MUAC ${entry.muac}cm`} value={Math.min(100, Math.round((entry.muac / 14) * 100))} tone="bg-amber-500" />
                   </div>
                 ))}
               </div>

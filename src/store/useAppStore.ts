@@ -61,7 +61,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   isAuthenticated: false,
   currentUser: null,
   userRole: null,
-  language: (typeof window !== 'undefined' && (localStorage.getItem('awc-language') as Language | null)) || 'en',
+  language: (typeof window !== 'undefined' && (localStorage.getItem('awc-language') as Language | null)) || 'od',
   theme: 'light',
   sidebarOpen: true,
   sidebarCollapsed: false,

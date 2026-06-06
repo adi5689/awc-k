@@ -56,7 +56,7 @@ export function Header() {
         <h1 className="text-base md:text-lg font-semibold text-foreground tracking-tight">
           {currentUser?.district && (
             <span className="text-muted-foreground font-normal text-sm mr-2 hidden md:inline">
-              {currentUser.district} District ·
+              {currentUser.district} {t('common.district_suffix')} -
             </span>
           )}
           {t('header.title')}
@@ -75,7 +75,7 @@ export function Header() {
               language === 'en' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
             )}
           >
-            English
+            {t('language.english')}
           </button>
           <button
             onClick={() => setLanguage('od')}
@@ -84,7 +84,7 @@ export function Header() {
               language === 'od' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
             )}
           >
-            ଓଡ଼ିଆ
+            {t('language.odia')}
           </button>
         </div>
 

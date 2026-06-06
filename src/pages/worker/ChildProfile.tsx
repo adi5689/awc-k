@@ -170,14 +170,16 @@ export function ChildProfile() {
       metrics: [
         { label: 'Parent Report', value: report ? 'Ready' : 'Pending', detail: report ? t(report.week) : 'No weekly report yet', icon: MessageSquareHeart, tone: report ? 'emerald' as const : 'amber' as const },
         { label: 'Badges Earned', value: badges.length, detail: 'Recognition records', icon: BadgeCheck, tone: badges.length > 0 ? 'emerald' as const : 'amber' as const },
-        { label: 'Meal Logs', value: meals.length, detail: 'Nutrition meal entries', icon: Utensils, tone: meals.length > 0 ? 'emerald' as const : 'amber' as const },
+        { label: 'Meal Logs', value: meals.length, detail: 'Meal log entries', icon: Utensils, tone: meals.length > 0 ? 'emerald' as const : 'amber' as const },
       ],
     },
   ];
   const periodicSummaryMetrics = [
-    { label: 'Latest Intake', value: latestPeriodic?.month ?? '-', detail: latestPeriodic?.date ?? 'No monthly record', icon: CalendarDays, tone: 'sky' as const },
-    { label: 'Weight', value: latestPeriodic ? `${latestPeriodic.weight} ${t('units.kg')}` : '-', detail: `${growthWeightDelta >= 0 ? '+' : ''}${growthWeightDelta} ${t('units.kg')} total change`, icon: Scale, tone: growthWeightDelta >= 0 ? 'emerald' as const : 'red' as const },
-    { label: 'Attendance', value: `${latestPeriodic?.attendanceRate ?? attendancePercent}%`, detail: 'Latest monthly intake record', icon: ClipboardCheck, tone: (latestPeriodic?.attendanceRate ?? attendancePercent) >= 80 ? 'emerald' as const : 'amber' as const },
+    { label: isSupervisorView ? 'Latest Intake' : 'Latest Record', value: latestPeriodic?.month ?? '-', detail: latestPeriodic?.date ?? 'No monthly record', icon: CalendarDays, tone: 'sky' as const },
+    ...(isSupervisorView
+      ? [{ label: 'Weight', value: latestPeriodic ? `${latestPeriodic.weight} ${t('units.kg')}` : '-', detail: `${growthWeightDelta >= 0 ? '+' : ''}${growthWeightDelta} ${t('units.kg')} total change`, icon: Scale, tone: growthWeightDelta >= 0 ? 'emerald' as const : 'red' as const }]
+      : []),
+    { label: 'Attendance', value: `${latestPeriodic?.attendanceRate ?? attendancePercent}%`, detail: 'Latest monthly record', icon: ClipboardCheck, tone: (latestPeriodic?.attendanceRate ?? attendancePercent) >= 80 ? 'emerald' as const : 'amber' as const },
     { label: 'Learning', value: `${latestPeriodic?.learningScore ?? Math.round(child.learningScore)}%`, detail: 'Tracked with monthly intake', icon: BookOpen, tone: (latestPeriodic?.learningScore ?? child.learningScore) >= 70 ? 'emerald' as const : 'amber' as const },
   ];
   const studentDashboardSections = [
@@ -204,15 +206,20 @@ export function ChildProfile() {
       ],
     },
     {
-      title: 'Nutrition & Health',
-      subtitle: 'Growth, nutrition band, THR, and health-risk status',
+      title: isSupervisorView ? 'Nutrition & Health' : 'Health & Care',
+      subtitle: isSupervisorView ? 'Growth, nutrition band, THR, and health-risk status' : 'Health-risk status and follow-up signals',
       icon: HeartPulse,
       tone: child.riskFlags.combinedRisk === 'Low' ? 'emerald' as const : child.riskFlags.combinedRisk === 'Medium' ? 'amber' as const : 'red' as const,
       targetTab: 'health' as const,
-      metrics: [
-        { label: 'Nutrition Status', value: t(child.nutritionStatus), detail: child.nutritionAlert ? t(child.nutritionAlert) : 'No active alert', icon: HeartPulse, tone: child.nutritionStatus === 'status.normal' ? 'emerald' as const : child.nutritionStatus === 'status.mam' ? 'amber' as const : 'red' as const },
-        { label: 'Health Flags', value: healthIssueCount, detail: healthIssueCount === 0 ? 'No symptoms logged' : `${healthIssueCount} symptom(s) logged`, icon: ShieldPlus, tone: healthIssueCount === 0 ? 'emerald' as const : healthIssueCount <= 2 ? 'amber' as const : 'red' as const },
-      ],
+      metrics: isSupervisorView
+        ? [
+            { label: 'Nutrition Status', value: t(child.nutritionStatus), detail: child.nutritionAlert ? t(child.nutritionAlert) : 'No active alert', icon: HeartPulse, tone: child.nutritionStatus === 'status.normal' ? 'emerald' as const : child.nutritionStatus === 'status.mam' ? 'amber' as const : 'red' as const },
+            { label: 'Health Flags', value: healthIssueCount, detail: healthIssueCount === 0 ? 'No symptoms logged' : `${healthIssueCount} symptom(s) logged`, icon: ShieldPlus, tone: healthIssueCount === 0 ? 'emerald' as const : healthIssueCount <= 2 ? 'amber' as const : 'red' as const },
+          ]
+        : [
+            { label: 'Health Flags', value: healthIssueCount, detail: healthIssueCount === 0 ? 'No symptoms logged' : `${healthIssueCount} symptom(s) logged`, icon: ShieldPlus, tone: healthIssueCount === 0 ? 'emerald' as const : healthIssueCount <= 2 ? 'amber' as const : 'red' as const },
+            { label: 'Combined Risk', value: child.riskFlags.combinedRisk, detail: riskFlags > 0 ? child.riskFlags.flags.map(flag => t(flag)).join(', ') : 'No risk flags', icon: AlertTriangle, tone: child.riskFlags.combinedRisk === 'Low' ? 'emerald' as const : child.riskFlags.combinedRisk === 'Medium' ? 'amber' as const : 'red' as const },
+          ],
     },
   ];
   const trackerSections = [
@@ -256,14 +263,16 @@ export function ChildProfile() {
                   {formatAge(child.ageMonths, t)} · {child.gender === 'M' ? t('status.boy') : t('status.girl')} · {child.parentName}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <span className={cn(
-                    'rounded-full px-3 py-1 text-xs font-semibold',
-                    rawGrowthStatus === 'common.healthy' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
-                    rawGrowthStatus === 'common.monitor' && 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
-                    rawGrowthStatus === 'common.needs_attention' && 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
-                  )}>
-                    {t(rawGrowthStatus)}
-                  </span>
+                  {isSupervisorView && (
+                    <span className={cn(
+                      'rounded-full px-3 py-1 text-xs font-semibold',
+                      rawGrowthStatus === 'common.healthy' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+                      rawGrowthStatus === 'common.monitor' && 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+                      rawGrowthStatus === 'common.needs_attention' && 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+                    )}>
+                      {t(rawGrowthStatus)}
+                    </span>
+                  )}
                   <span className={cn(
                     'rounded-full px-3 py-1 text-xs font-semibold',
                     rawProgressStatus === 'common.on_track' && 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300',
@@ -277,21 +286,23 @@ export function ChildProfile() {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              {[
-                { label: t('common.height'), value: `${latestGrowth?.height ?? '-'} ${t('units.cm')}`, icon: Ruler },
-                { label: t('common.weight'), value: `${latestGrowth?.weight ?? '-'} ${t('units.kg')}`, icon: Scale },
-                { label: t('common.muac'), value: `${latestGrowth?.muac ?? '-'} ${t('units.mm')}`, icon: HeartPulse },
-              ].map((metric) => (
-                <div key={metric.label} className="rounded-3xl border border-white/50 bg-white/70 p-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-900/50">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <metric.icon size={16} />
-                    <span className="text-xs font-semibold uppercase tracking-[0.2em]">{metric.label}</span>
+            {isSupervisorView && (
+              <div className="grid gap-3 sm:grid-cols-3">
+                {[
+                  { label: t('common.height'), value: `${latestGrowth?.height ?? '-'} ${t('units.cm')}`, icon: Ruler },
+                  { label: t('common.weight'), value: `${latestGrowth?.weight ?? '-'} ${t('units.kg')}`, icon: Scale },
+                  { label: t('common.muac'), value: `${latestGrowth?.muac ?? '-'} ${t('units.mm')}`, icon: HeartPulse },
+                ].map((metric) => (
+                  <div key={metric.label} className="rounded-3xl border border-white/50 bg-white/70 p-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-slate-900/50">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <metric.icon size={16} />
+                      <span className="text-xs font-semibold uppercase tracking-[0.2em]">{metric.label}</span>
+                    </div>
+                    <p className="mt-3 text-2xl font-bold text-foreground">{metric.value}</p>
                   </div>
-                  <p className="mt-3 text-2xl font-bold text-foreground">{metric.value}</p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -313,7 +324,7 @@ export function ChildProfile() {
         </div>
 
         <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          A compact child-wise view aligned with the detailed Attendance, Learning, and Nutrition & Health sections below.
+          A compact child-wise view aligned with the detailed Attendance, Learning, and {isSupervisorView ? 'Nutrition & Health' : 'Health & Care'} sections below.
         </p>
 
         <div className="mt-6 grid gap-4 xl:grid-cols-3">
@@ -528,14 +539,20 @@ export function ChildProfile() {
                   <p className="text-sm text-muted-foreground">{formatAge(child.ageMonths, t)} · {child.parentName}</p>
                 </div>
               </div>
-              <span className={cn(
-                'rounded-full px-3 py-1 text-xs font-bold uppercase',
-                latestPeriodic?.nutritionStatus === 'Normal' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
-                latestPeriodic?.nutritionStatus === 'Moderate' && 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
-                latestPeriodic?.nutritionStatus === 'Severe' && 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
-              )}>
-                {latestPeriodic?.nutritionStatus ?? 'No intake'}
-              </span>
+              {isSupervisorView ? (
+                <span className={cn(
+                  'rounded-full px-3 py-1 text-xs font-bold uppercase',
+                  latestPeriodic?.nutritionStatus === 'Normal' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+                  latestPeriodic?.nutritionStatus === 'Moderate' && 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+                  latestPeriodic?.nutritionStatus === 'Severe' && 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+                )}>
+                  {latestPeriodic?.nutritionStatus ?? 'No intake'}
+                </span>
+              ) : (
+                <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-bold uppercase text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">
+                  {latestPeriodic?.month ?? 'No monthly record'}
+                </span>
+              )}
             </div>
           </div>
 
@@ -545,7 +562,7 @@ export function ChildProfile() {
               { value: 'growth' as const, label: 'Growth History', icon: Scale },
               { value: 'learning' as const, label: 'Learning Trend', icon: BookOpen },
               { value: 'health' as const, label: 'Health & Care', icon: ShieldPlus },
-            ].map((tab) => (
+            ].filter((tab) => isSupervisorView || tab.value !== 'growth').map((tab) => (
               <button
                 key={tab.value}
                 type="button"
@@ -575,8 +592,12 @@ export function ChildProfile() {
                     {[
                       ['Month', latestPeriodic.month],
                       ['Date', latestPeriodic.date],
-                      ['BMI', latestPeriodic.bmi],
-                      ['Nutrition', latestPeriodic.nutritionStatus],
+                      ...(isSupervisorView
+                        ? [
+                            ['BMI', latestPeriodic.bmi],
+                            ['Nutrition', latestPeriodic.nutritionStatus],
+                          ]
+                        : []),
                       ['Learning Score', `${latestPeriodic.learningScore}%`],
                       ['Attendance', `${latestPeriodic.attendanceRate}%`],
                     ].map(([label, value]) => (
@@ -593,7 +614,7 @@ export function ChildProfile() {
             </div>
           )}
 
-          {metricsTab === 'growth' && (
+          {isSupervisorView && metricsTab === 'growth' && (
             <div className="space-y-5">
               <div className="rounded-2xl border border-border bg-card p-4">
                 <h4 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
@@ -654,7 +675,11 @@ export function ChildProfile() {
             <div className="space-y-5">
               <div className="grid gap-3 sm:grid-cols-2">
                 {individualMetricGroups
-                  .filter((group) => ['Health & Protection', 'Nutrition & Growth', 'Family Engagement'].includes(group.title))
+                  .filter((group) =>
+                    isSupervisorView
+                      ? ['Health & Protection', 'Nutrition & Growth', 'Family Engagement'].includes(group.title)
+                      : ['Health & Protection', 'Family Engagement'].includes(group.title)
+                  )
                   .map((group) => (
                     <div key={group.title} className="space-y-3 sm:contents">
                       {group.metrics.map((metric) => (
@@ -671,26 +696,28 @@ export function ChildProfile() {
                   ))}
               </div>
 
-              <div className="rounded-2xl border border-border bg-card p-4">
-                <h4 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
-                  <Sparkles size={14} className="text-primary" />
-                  Periodic insights
-                </h4>
-                <div className="space-y-2">
-                  {periodicInsights.map((insight) => (
-                    <div key={insight.id} className={cn(
-                      'rounded-xl border px-3 py-2',
-                      insight.type === 'positive' && 'border-emerald-200 bg-emerald-50/50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/10 dark:text-emerald-300',
-                      insight.type === 'warning' && 'border-amber-200 bg-amber-50/50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/10 dark:text-amber-300',
-                      insight.type === 'critical' && 'border-red-200 bg-red-50/50 text-red-800 dark:border-red-900/40 dark:bg-red-950/10 dark:text-red-300',
-                      insight.type === 'info' && 'border-sky-200 bg-sky-50/50 text-sky-800 dark:border-sky-900/40 dark:bg-sky-950/10 dark:text-sky-300',
-                    )}>
-                      <p className="text-sm font-bold">{insight.title}</p>
-                      <p className="mt-1 text-xs leading-5 opacity-90">{insight.description}</p>
-                    </div>
-                  ))}
+              {isSupervisorView && (
+                <div className="rounded-2xl border border-border bg-card p-4">
+                  <h4 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
+                    <Sparkles size={14} className="text-primary" />
+                    Periodic insights
+                  </h4>
+                  <div className="space-y-2">
+                    {periodicInsights.map((insight) => (
+                      <div key={insight.id} className={cn(
+                        'rounded-xl border px-3 py-2',
+                        insight.type === 'positive' && 'border-emerald-200 bg-emerald-50/50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/10 dark:text-emerald-300',
+                        insight.type === 'warning' && 'border-amber-200 bg-amber-50/50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/10 dark:text-amber-300',
+                        insight.type === 'critical' && 'border-red-200 bg-red-50/50 text-red-800 dark:border-red-900/40 dark:bg-red-950/10 dark:text-red-300',
+                        insight.type === 'info' && 'border-sky-200 bg-sky-50/50 text-sky-800 dark:border-sky-900/40 dark:bg-sky-950/10 dark:text-sky-300',
+                      )}>
+                        <p className="text-sm font-bold">{insight.title}</p>
+                        <p className="mt-1 text-xs leading-5 opacity-90">{insight.description}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>

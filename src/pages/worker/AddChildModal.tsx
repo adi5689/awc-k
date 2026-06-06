@@ -4,7 +4,7 @@ import { Input } from '../../components/ui/input';
 import { SideDrawer } from '../../components/ui/side-drawer';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import type { ManagedChild } from '../../data/childMonitoringData';
-import { Baby, ClipboardList, Phone, Scale } from 'lucide-react';
+import { Baby, Phone } from 'lucide-react';
 
 type ChildFormValues = {
   name: string;
@@ -28,7 +28,7 @@ const emptyForm: ChildFormValues = {
   gender: '',
   parentName: '',
   phoneNumber: '',
-  birthWeight: '',
+  birthWeight: '0',
 };
 
 function getAgeLabel(dob: string) {
@@ -70,10 +70,6 @@ export function AddChildModal({ open, onOpenChange, onSubmit, initialChild }: Ad
     if (!form.gender) nextErrors.gender = 'Gender is required.';
     if (!form.parentName.trim()) nextErrors.parentName = 'Parent name is required.';
     if (!/^\d{10}$/.test(form.phoneNumber)) nextErrors.phoneNumber = 'Enter a valid 10-digit phone number.';
-    const birthWeight = Number(form.birthWeight);
-    if (!form.birthWeight || Number.isNaN(birthWeight) || birthWeight <= 0 || birthWeight > 6) {
-      nextErrors.birthWeight = 'Birth weight should be between 0.1 and 6 kg.';
-    }
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
@@ -90,7 +86,7 @@ export function AddChildModal({ open, onOpenChange, onSubmit, initialChild }: Ad
       gender: form.gender as 'Male' | 'Female',
       parentName: form.parentName.trim(),
       phoneNumber: form.phoneNumber,
-      birthWeight: Number(form.birthWeight),
+      birthWeight: initialChild?.birthWeight ?? (Number(form.birthWeight) || 0),
       nutritionStatus: initialChild?.nutritionStatus ?? 'Normal',
     });
 
@@ -120,11 +116,10 @@ export function AddChildModal({ open, onOpenChange, onSubmit, initialChild }: Ad
     >
       <form id="child-registration-form" onSubmit={handleSubmit} className="space-y-5">
         <div className="rounded-2xl border border-border bg-muted/30 p-1">
-          <div className="grid gap-1 sm:grid-cols-3">
+          <div className="grid gap-1 sm:grid-cols-2">
             {[
               { label: 'Profile', icon: Baby, active: true },
               { label: 'Guardian', icon: Phone, active: true },
-              { label: 'Baseline', icon: Scale, active: true },
             ].map((step) => (
               <div
                 key={step.label}
@@ -140,7 +135,7 @@ export function AddChildModal({ open, onOpenChange, onSubmit, initialChild }: Ad
         <FormSection
           icon={Baby}
           title="Child Profile"
-          description="Core identity fields used across attendance, nutrition, and development tracking."
+          description="Core identity fields used across attendance and development tracking."
         >
           <div className="grid gap-4 md:grid-cols-2">
             <FormField label="Child Name" error={errors.name}>
@@ -206,29 +201,6 @@ export function AddChildModal({ open, onOpenChange, onSubmit, initialChild }: Ad
           </div>
         </FormSection>
 
-        <FormSection
-          icon={ClipboardList}
-          title="Health Baseline"
-          description="Starting values used by the growth and nutrition registers."
-        >
-          <div className="grid gap-4 md:grid-cols-2">
-            <FormField label="Birth Weight" error={errors.birthWeight}>
-              <Input
-                type="number"
-                step="0.1"
-                value={form.birthWeight}
-                onChange={(event) => setForm((current) => ({ ...current, birthWeight: event.target.value }))}
-                placeholder="Weight in kg"
-              />
-            </FormField>
-
-            <FormField label="Nutrition Status">
-              <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm font-medium text-muted-foreground">
-                {initialChild?.nutritionStatus ?? 'Normal'}
-              </div>
-            </FormField>
-          </div>
-        </FormSection>
       </form>
     </SideDrawer>
   );

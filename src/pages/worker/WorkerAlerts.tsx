@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   ArrowRight,
   BellRing,
-  HeartPulse,
   MapPin,
   Phone,
   ShieldAlert,
@@ -29,7 +28,7 @@ export function WorkerAlerts() {
 
   const criticalCount = alerts.filter((alert) => alert.severity === 'critical').length;
   const warningCount = alerts.filter((alert) => alert.severity === 'warning').length;
-  const nutritionCount = alerts.filter((alert) => alert.category === 'nutrition').length;
+  const careFollowUpCount = alerts.filter((alert) => alert.category === 'care').length;
 
   const summaryCards = [
     {
@@ -54,10 +53,10 @@ export function WorkerAlerts() {
       tone: 'amber',
     },
     {
-      label: 'Nutrition Risk',
-      value: nutritionCount,
-      helper: 'Children needing nutrition review',
-      icon: HeartPulse,
+      label: 'Child Follow-up',
+      value: careFollowUpCount,
+      helper: 'Children needing priority review',
+      icon: AlertCircle,
       tone: 'emerald',
     },
   ] as const;
@@ -145,7 +144,7 @@ export function WorkerAlerts() {
             <div className="rounded-[1.25rem] border border-red-200 bg-red-50/80 p-4 dark:border-red-900 dark:bg-red-950/20">
               <p className="text-sm font-semibold text-red-700 dark:text-red-300">Immediate today</p>
               <p className="mt-2 text-sm text-muted-foreground">
-                Review SAM or high-risk children first and prepare nutrition escalation where needed.
+                Review high-priority children first and prepare referral support where needed.
               </p>
             </div>
             <div className="rounded-[1.25rem] border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-900 dark:bg-amber-950/20">
@@ -272,8 +271,8 @@ export function WorkerAlerts() {
                             type="button"
                             onClick={() =>
                               navigate(
-                                alert.category === 'nutrition'
-                                  ? '/worker/nutrition'
+                                alert.category === 'care'
+                                  ? '/worker/children'
                                   : alert.category === 'attendance'
                                     ? '/worker/children'
                                     : '/worker/insights'
@@ -306,7 +305,7 @@ export function WorkerAlerts() {
         <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
           <h3 className="text-lg font-semibold text-foreground">Centre Reminder</h3>
           <p className="mt-2 text-sm text-muted-foreground">
-            Update attendance, nutrition follow-up, and escalations after completing today’s alert actions.
+            Update attendance, child follow-up, and escalations after completing today’s alert actions.
           </p>
         </section>
       )}

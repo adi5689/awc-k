@@ -9,10 +9,11 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { AIAssistantWidget } from '../AIAssistantWidget';
 import { useAppStore } from '../../store/useAppStore';
+import { cn } from '../../utils';
 import { Toaster } from 'react-hot-toast';
 
 export function AppLayout() {
-  const { isAuthenticated } = useAppStore();
+  const { isAuthenticated, userRole } = useAppStore();
   const navigate = useNavigate();
 
   // Redirect to login if not authenticated
@@ -47,7 +48,10 @@ export function AppLayout() {
       <div className="flex-1 flex h-screen flex-col overflow-hidden transition-all duration-300">
         <Header />
         <main className="flex-1 overflow-y-auto scrollbar-thin">
-          <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto">
+          <div className={cn(
+            'p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto',
+            userRole === 'worker' && 'pb-28 md:pb-28 lg:pb-8'
+          )}>
             <div className="page-transition">
               <Outlet />
             </div>

@@ -11,100 +11,96 @@ import { useTranslation } from '../../hooks/useTranslation';
 import {
   LayoutDashboard, Users, Brain, BookOpen, Activity,
   Map, Settings, ChevronLeft, ChevronRight, ChevronDown,
-  LogOut, Sparkles, ClipboardList, PenTool, HeartPulse, Syringe, CalendarDays, FileBarChart2, AlertCircle, WifiOff, Lightbulb, BrainCircuit, Route
+  LogOut, Sparkles, ClipboardList, PenTool, HeartPulse, Syringe, CalendarDays, FileBarChart2, WifiOff, BrainCircuit, Route, GraduationCap, ShieldCheck, PlugZap, MoreHorizontal
 } from 'lucide-react';
 
 const workerNavGroups = [
   {
-    label: 'Dashboard',
+    label: 'nav.group.dashboard',
     collapsible: false,
-    items: [{ name: 'Dashboard', icon: LayoutDashboard, path: '/worker' }],
+    items: [{ name: 'nav.dashboard', icon: LayoutDashboard, path: '/worker' }],
   },
   {
-    label: 'Children',
+    label: 'nav.group.children',
     collapsible: true,
     items: [
-      { name: 'All Children', icon: Users, path: '/worker/children' },
-      { name: 'Progress Tracking', icon: Activity, path: '/worker/progress-tracking' },
+      { name: 'nav.all_children', icon: Users, path: '/worker/children' },
+      { name: 'nav.progress_tracking', icon: Activity, path: '/worker/progress-tracking' },
     ],
   },
   {
-    label: 'Learning',
+    label: 'nav.group.learning',
     collapsible: true,
     items: [
-      { name: 'Learning Progress', icon: BookOpen, path: '/worker/learning' },
-      { name: 'Learning Session', icon: BrainCircuit, path: '/worker/learning-session' },
-      { name: 'Adaptive Learning', icon: Brain, path: '/worker/adaptive-learning' },
-      { name: 'Whiteboard', icon: PenTool, path: '/worker/board' },
+      { name: 'nav.learning_progress', icon: BookOpen, path: '/worker/learning' },
+      { name: 'nav.learning_session', icon: BrainCircuit, path: '/worker/learning-session' },
+      { name: 'nav.adaptive_learning', icon: Brain, path: '/worker/adaptive-learning' },
+      { name: 'nav.whiteboard', icon: PenTool, path: '/worker/board' },
     ],
   },
   {
-    label: 'Nutrition & Health',
+    label: 'nav.group.attendance',
+    collapsible: false,
+    items: [{ name: 'nav.daily_attendance', icon: CalendarDays, path: '/worker/attendance' }],
+  },
+  {
+    label: 'nav.group.reports',
     collapsible: true,
     items: [
-      { name: 'Nutrition Status', icon: HeartPulse, path: '/worker/nutrition' },
-      { name: 'Predictive Risk', icon: Route, path: '/worker/predictive-risk' },
-      { name: 'Immunization', icon: Syringe, path: '/worker/immunization' },
+      { name: 'nav.reports', icon: FileBarChart2, path: '/worker/reports' },
+      { name: 'nav.training', icon: GraduationCap, path: '/worker/training' },
     ],
   },
   {
-    label: 'Attendance',
+    label: 'nav.group.offline_sync',
     collapsible: false,
-    items: [{ name: 'Daily Attendance', icon: CalendarDays, path: '/worker/attendance' }],
-  },
-  {
-    label: 'Interventions',
-    collapsible: true,
-    items: [
-      { name: 'Critical Alerts', icon: AlertCircle, path: '/worker/alerts' },
-      { name: 'AI Dashboard', icon: BrainCircuit, path: '/worker/ai-dashboard' },
-      { name: 'Suggested Actions', icon: Lightbulb, path: '/worker/insights' },
-    ],
-  },
-  {
-    label: 'Reports',
-    collapsible: false,
-    items: [{ name: 'Reports', icon: FileBarChart2, path: '/worker/reports' }],
-  },
-  {
-    label: 'Offline Sync',
-    collapsible: false,
-    items: [{ name: 'Offline Sync', icon: WifiOff, path: '/worker/offline-sync' }],
+    items: [{ name: 'nav.offline_sync', icon: WifiOff, path: '/worker/offline-sync' }],
   },
 ];
 
+const workerDockItems = workerNavGroups.flatMap((group) => group.items);
+const visibleWorkerDockItems = workerDockItems.slice(0, 3);
+const visibleWorkerDockPaths = new Set(visibleWorkerDockItems.map((item) => item.path));
+const overflowWorkerDockGroups = workerNavGroups
+  .map((group) => ({
+    ...group,
+    items: group.items.filter((item) => !visibleWorkerDockPaths.has(item.path)),
+  }))
+  .filter((group) => group.items.length > 0);
+
 const supervisorNavGroups = [
   {
-    label: 'Overview',
+    label: 'nav.group.overview',
     collapsible: false,
     items: [
-      { name: 'Dashboard', icon: LayoutDashboard, path: '/supervisor' },
-      { name: 'Centres Directory', icon: ClipboardList, path: '/supervisor/awc-list' },
+      { name: 'nav.dashboard', icon: LayoutDashboard, path: '/supervisor' },
+      { name: 'nav.centres_directory', icon: ClipboardList, path: '/supervisor/awc-list' },
     ],
   },
   {
-    label: 'Monitoring',
+    label: 'nav.group.monitoring',
     collapsible: true,
     items: [
-      { name: 'Attendance Trends', icon: CalendarDays, path: '/supervisor/attendance' },
-      { name: 'Educational Progress', icon: BookOpen, path: '/supervisor/learning' },
-      { name: 'AI Dashboard', icon: BrainCircuit, path: '/supervisor/ai-dashboard' },
+      { name: 'nav.attendance_trends', icon: CalendarDays, path: '/supervisor/attendance' },
+      { name: 'nav.educational_progress', icon: BookOpen, path: '/supervisor/learning' },
+      { name: 'nav.ai_dashboard', icon: BrainCircuit, path: '/supervisor/ai-dashboard' },
     ],
   },
   {
-    label: 'Health & Stats',
+    label: 'nav.group.health_stats',
     collapsible: true,
     items: [
-      { name: 'Nutrition Tracking', icon: HeartPulse, path: '/supervisor/nutrition' },
-      { name: 'Predictive Risk', icon: Route, path: '/supervisor/predictive-risk' },
-      { name: 'Immunization Coverage', icon: Syringe, path: '/supervisor/immunization' },
+      { name: 'nav.nutrition_tracking', icon: HeartPulse, path: '/supervisor/nutrition' },
+      { name: 'nav.predictive_risk', icon: Route, path: '/supervisor/predictive-risk' },
+      { name: 'nav.immunization_coverage', icon: Syringe, path: '/supervisor/immunization' },
     ],
   },
   {
-    label: 'Analytics & Reports',
+    label: 'nav.group.analytics_reports',
     collapsible: true,
     items: [
-      { name: 'Generate Reports', icon: FileBarChart2, path: '/supervisor/reports' }
+      { name: 'nav.generate_reports', icon: FileBarChart2, path: '/supervisor/reports' },
+      { name: 'nav.training_progress', icon: GraduationCap, path: '/supervisor/training' }
     ],
   },
 ];
@@ -114,6 +110,9 @@ const adminNav = [
   { name: 'nav.heatmap', icon: Map, path: '/admin/heatmap' },
   { name: 'nav.insights', icon: Brain, path: '/admin/insights' },
   { name: 'nav.reports', icon: Activity, path: '/admin/reports' },
+  { name: 'nav.training', icon: GraduationCap, path: '/admin/training' },
+  { name: 'nav.system_monitoring', icon: ShieldCheck, path: '/admin/system-monitoring' },
+  { name: 'nav.integrations', icon: PlugZap, path: '/admin/integrations' },
 ];
 
 export function Sidebar() {
@@ -121,6 +120,8 @@ export function Sidebar() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+  const isWorker = userRole === 'worker';
+  const [dockMoreOpen, setDockMoreOpen] = useState(false);
 
   // Initialize open groups based on which group has the active route
   const getInitialOpenGroups = () => {
@@ -167,10 +168,20 @@ export function Sidebar() {
     navigate('/login', { replace: true });
   };
 
-  return (
+  const handleDockLogout = () => {
+    setDockMoreOpen(false);
+    handleLogout();
+  };
+
+  const hasActiveDockOverflow = overflowWorkerDockGroups.some((group) =>
+    group.items.some((item) => location.pathname === item.path || location.pathname.startsWith(item.path + '/'))
+  );
+
+  const sidebar = (
     <aside
       className={cn(
         'flex flex-col h-screen bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),_transparent_30%),linear-gradient(180deg,#0b1220_0%,#111827_42%,#0f172a_100%)] dark:bg-[radial-gradient(circle_at_top,_rgba(34,197,94,0.14),_transparent_30%),linear-gradient(180deg,#020617_0%,#0f172a_42%,#020617_100%)] text-white transition-all duration-300 relative z-20 border-r border-white/5',
+        isWorker ? 'hidden lg:flex' : 'flex',
         sidebarCollapsed ? 'w-[72px]' : 'w-64'
       )}
     >
@@ -232,7 +243,7 @@ export function Sidebar() {
                         hasActiveChild ? 'text-emerald-400' : 'text-slate-500 hover:text-slate-300'
                       )}
                     >
-                      <span>{group.label}</span>
+                      <span>{t(group.label)}</span>
                       <ChevronDown
                         size={12}
                         className={cn(
@@ -243,7 +254,7 @@ export function Sidebar() {
                     </button>
                   ) : (
                     <p className="px-3 pt-4 pb-1 text-[10px] font-black uppercase tracking-[0.24em] text-slate-500">
-                      {group.label}
+                      {t(group.label)}
                     </p>
                   )
                 )}
@@ -319,5 +330,119 @@ export function Sidebar() {
         </button>
       </div>
     </aside>
+  );
+
+  if (!isWorker) return sidebar;
+
+  return (
+    <>
+      {sidebar}
+      <aside className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-slate-950/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 text-white shadow-2xl shadow-slate-950/30 backdrop-blur-xl lg:hidden">
+        {dockMoreOpen && (
+          <div className="absolute inset-x-2 bottom-[calc(100%+0.5rem)] max-h-[48vh] overflow-y-auto rounded-2xl border border-white/10 bg-slate-950/95 p-2 shadow-2xl shadow-slate-950/40 backdrop-blur-xl">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {overflowWorkerDockGroups.map((group) => {
+                const isOpen = openGroups.has(group.label);
+                const hasActiveChild = group.items.some(
+                  (item) => location.pathname === item.path || location.pathname.startsWith(item.path + '/')
+                );
+
+                return (
+                  <div key={group.label} className="space-y-1">
+                    {group.collapsible ? (
+                      <button
+                        onClick={() => toggleGroup(group.label)}
+                        className={cn(
+                          'flex w-full items-center justify-between rounded-lg px-3 pb-1.5 pt-2 text-left text-[10px] font-black uppercase tracking-[0.22em] transition-colors',
+                          hasActiveChild ? 'text-emerald-400' : 'text-slate-500 hover:text-slate-300'
+                        )}
+                      >
+                        <span>{t(group.label)}</span>
+                        <ChevronDown
+                          size={12}
+                          className={cn(
+                            'transition-transform duration-200',
+                            isOpen ? 'rotate-180' : 'rotate-0'
+                          )}
+                        />
+                      </button>
+                    ) : (
+                      <p className="px-3 pb-1 pt-2 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
+                        {t(group.label)}
+                      </p>
+                    )}
+
+                    {(isOpen || !group.collapsible) && (
+                      <div className={cn(
+                        'space-y-1 overflow-hidden transition-all duration-200',
+                        group.collapsible ? 'ml-1 border-l border-slate-800/60 pl-2' : ''
+                      )}>
+                        {group.items.map((item) => (
+                          <NavLink
+                            key={item.path}
+                            to={item.path}
+                            end={item.path === '/worker'}
+                            onClick={() => setDockMoreOpen(false)}
+                            className={({ isActive }) => cn(
+                              'flex items-center gap-3 rounded-xl px-3 py-3 text-left transition-all duration-200',
+                              isActive
+                                ? 'bg-gradient-to-r from-emerald-500 via-green-500 to-sky-500 text-white shadow-lg shadow-emerald-900/25'
+                                : 'text-slate-300/80 hover:bg-white/10 hover:text-white'
+                            )}
+                          >
+                            <item.icon size={20} className="flex-shrink-0" />
+                            <span className="min-w-0 truncate text-sm font-medium">{t(item.name) || item.name}</span>
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              <button
+                onClick={handleDockLogout}
+                className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300/80 transition-all duration-200 hover:bg-red-900/30 hover:text-red-300"
+              >
+                <LogOut size={20} className="flex-shrink-0" />
+                <span className="min-w-0 truncate text-sm font-medium">{t('nav.logout')}</span>
+              </button>
+            </div>
+          </div>
+        )}
+        <nav className="grid grid-cols-4 gap-2" aria-label={t('nav.group.dashboard')}>
+          {visibleWorkerDockItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              end={item.path === '/worker'}
+              onClick={() => setDockMoreOpen(false)}
+              className={({ isActive }) => cn(
+                'flex h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-2 text-center transition-all duration-200',
+                isActive
+                  ? 'bg-gradient-to-r from-emerald-500 via-green-500 to-sky-500 text-white shadow-lg shadow-emerald-900/25'
+                  : 'text-slate-300/80 hover:bg-white/10 hover:text-white'
+              )}
+            >
+              <item.icon size={20} className="flex-shrink-0" />
+              <span className="w-full truncate text-[10px] font-medium leading-tight">{t(item.name) || item.name}</span>
+            </NavLink>
+          ))}
+          <button
+            onClick={() => setDockMoreOpen((open) => !open)}
+            className={cn(
+              'flex h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-2 text-center transition-all duration-200',
+              dockMoreOpen || hasActiveDockOverflow
+                ? 'bg-gradient-to-r from-emerald-500 via-green-500 to-sky-500 text-white shadow-lg shadow-emerald-900/25'
+                : 'text-slate-300/80 hover:bg-white/10 hover:text-white'
+            )}
+            aria-expanded={dockMoreOpen}
+            aria-label="More"
+          >
+            <MoreHorizontal size={20} />
+            <span className="w-full truncate text-[10px] font-medium leading-tight">More</span>
+          </button>
+        </nav>
+      </aside>
+    </>
   );
 }

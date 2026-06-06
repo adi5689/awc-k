@@ -16,11 +16,9 @@ import { WorkerAdaptiveLearning } from './pages/worker/WorkerAdaptiveLearning';
 import { LearningSession } from './pages/worker/LearningSession';
 import { ChildProgressTracking } from './pages/worker/ChildProgressTracking';
 import { AIAssistedDashboard } from './pages/worker/AIAssistedDashboard';
-import { PredictiveRisk } from './pages/worker/PredictiveRisk';
 import { GreenBoardPage } from './pages/worker/GreenBoardPage';
 import { WorkerAlerts } from './pages/worker/WorkerAlerts';
 import { WorkerInsights } from './pages/worker/WorkerInsights';
-import { Nutrition } from './pages/worker/Nutrition';
 import { Immunization } from './pages/worker/Immunization';
 import { Attendance } from './pages/worker/Attendance';
 import { Reports } from './pages/worker/Reports';
@@ -43,6 +41,9 @@ import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AdminHeatmap } from './pages/admin/AdminHeatmap';
 import { AdminInsights } from './pages/admin/AdminInsights';
 import { AdminReports } from './pages/admin/AdminReports';
+import { SystemMonitoring } from './pages/admin/SystemMonitoring';
+import { AdminIntegrations } from './pages/admin/AdminIntegrations';
+import { TrainingKnowledgeBase } from './pages/shared/TrainingKnowledgeBase';
 
 export default function App() {
   return (
@@ -56,8 +57,6 @@ export default function App() {
         <Route path="child/:childId" element={<ChildProfile />} />
         <Route path="children" element={<WorkerChildren />} />
         <Route path="progress-tracking" element={<ChildProgressTracking />} />
-        <Route path="nutrition" element={<Nutrition />} />
-        <Route path="predictive-risk" element={<PredictiveRisk />} />
         <Route path="immunization" element={<Immunization />} />
         <Route path="attendance" element={<Attendance />} />
         <Route path="reports" element={<Reports />} />
@@ -68,6 +67,7 @@ export default function App() {
         <Route path="alerts" element={<WorkerAlerts />} />
         <Route path="ai-dashboard" element={<AIAssistedDashboard />} />
         <Route path="insights" element={<WorkerInsights />} />
+        <Route path="training" element={<TrainingKnowledgeBase />} />
         <Route path="offline-sync" element={<OfflineSync />} />
       </Route>
 
@@ -84,6 +84,7 @@ export default function App() {
         <Route path="ai-dashboard" element={<SupervisorAIAssistedDashboard />} />
         <Route path="immunization" element={<SupervisorImmunization />} />
         <Route path="reports" element={<SupervisorReports />} />
+        <Route path="training" element={<TrainingKnowledgeBase />} />
       </Route>
 
       {/* Admin Routes */}
@@ -92,6 +93,9 @@ export default function App() {
         <Route path="heatmap" element={<AdminHeatmap />} />
         <Route path="insights" element={<AdminInsights />} />
         <Route path="reports" element={<AdminReports />} />
+        <Route path="training" element={<TrainingKnowledgeBase />} />
+        <Route path="system-monitoring" element={<SystemMonitoring />} />
+        <Route path="integrations" element={<AdminIntegrations />} />
       </Route>
 
       {/* Default: redirect to login */}

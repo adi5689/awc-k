@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Activity, Download, FileBarChart2, HeartPulse, ShieldCheck, Sparkles, TrendingUp, Users } from 'lucide-react';
+import { CalendarDays, Download, FileBarChart2, HeartPulse, ShieldCheck, Sparkles, Users } from 'lucide-react';
 import { Alert } from '../../components/ui/alert';
 import { Button } from '../../components/ui/button';
 import { managedChildren } from '../../data/childMonitoringData';
-import { downloadWorkerReport, type WorkerReportKind } from '../../utils/reportPdf';
+import { downloadWorkerReport, downloadWorkerReportCsv, downloadWorkerReportExcel, type WorkerReportKind } from '../../utils/reportPdf';
 import { cn } from '../../utils';
 
 type ReportCard = {
@@ -17,28 +17,20 @@ type ReportCard = {
 
 const reportCards: ReportCard[] = [
   {
+    id: 'daily',
+    title: 'Daily Summary Report',
+    description: 'One-day attendance, health alert, immunization, and next-action summary for the centre.',
+    icon: CalendarDays,
+    tone: 'emerald',
+    bullets: ['Today attendance', 'Immunization status', 'Health follow-up list'],
+  },
+  {
     id: 'overall',
     title: 'Overall Detail Report',
-    description: 'A complete centre snapshot with child profile, growth, nutrition, immunization, health, and attendance in one PDF.',
+    description: 'A complete centre snapshot with child profile, immunization, health, and attendance in one PDF.',
     icon: Sparkles,
     tone: 'slate',
     bullets: ['All students included', 'Centre overview', 'Cross-domain child summary'],
-  },
-  {
-    id: 'growth',
-    title: 'Growth Report',
-    description: 'Professional anthropometric report covering latest weight, height, MUAC, and recent change for each child.',
-    icon: TrendingUp,
-    tone: 'sky',
-    bullets: ['Weight and height review', 'MUAC summary', 'Monthly change columns'],
-  },
-  {
-    id: 'nutrition',
-    title: 'Nutrition Report',
-    description: 'Covers dietary diversity, meals per day, THR coverage, and latest nutrition remarks for all students.',
-    icon: Activity,
-    tone: 'emerald',
-    bullets: ['Diet diversity score', 'THR utilization', 'Feeding practice details'],
   },
   {
     id: 'immunization',
@@ -76,11 +68,17 @@ function toneClasses(tone: ReportCard['tone']) {
 }
 
 export function Reports() {
-  const [message, setMessage] = useState('Choose a report to generate a downloadable PDF.');
+  const [message, setMessage] = useState('Choose a report to generate a downloadable file.');
 
-  const handleDownload = (report: ReportCard) => {
-    downloadWorkerReport(report.id);
-    setMessage(`${report.title} generated as a PDF download for ${managedChildren.length} students.`);
+  const handleDownload = (report: ReportCard, format: 'pdf' | 'csv' | 'excel') => {
+    if (format === 'csv') {
+      downloadWorkerReportCsv(report.id);
+    } else if (format === 'excel') {
+      downloadWorkerReportExcel(report.id);
+    } else {
+      downloadWorkerReport(report.id);
+    }
+    setMessage(`${report.title} generated as ${format.toUpperCase()} for ${managedChildren.length} students.`);
   };
 
   return (
@@ -92,14 +90,14 @@ export function Reports() {
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-300">Centre Reporting Hub</p>
               <h2 className="mt-3 text-3xl font-bold tracking-tight text-white">Professional PDF Reports</h2>
               <p className="mt-2 text-sm leading-6 text-slate-300">
-                Download polished centre reports covering overall detail, growth, nutrition, immunization, health, and attendance for all students.
+                Download polished centre reports covering overall detail, immunization, health, and attendance for all students.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {[
                 { label: 'Students', value: `${managedChildren.length}` },
                 { label: 'Report Types', value: `${reportCards.length}` },
-                { label: 'Format', value: 'PDF' },
+                { label: 'Formats', value: 'PDF/CSV/XLS' },
               ].map((item) => (
                 <div key={item.label} className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur-sm">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-300">{item.label}</p>
@@ -131,12 +129,20 @@ export function Reports() {
               ))}
             </div>
 
-            <div className="mt-6 flex items-center justify-between gap-3">
+            <div className="mt-6 grid gap-2">
               <span className="text-xs font-medium text-muted-foreground">Includes details of all students</span>
-              <Button className="rounded-xl gap-2" onClick={() => handleDownload(report)}>
-                <Download size={14} />
-                Download PDF
-              </Button>
+              <div className="grid grid-cols-3 gap-2">
+                <Button className="rounded-xl gap-2" onClick={() => handleDownload(report, 'pdf')}>
+                  <Download size={14} />
+                  PDF
+                </Button>
+                <Button variant="outline" className="rounded-xl" onClick={() => handleDownload(report, 'csv')}>
+                  CSV
+                </Button>
+                <Button variant="outline" className="rounded-xl" onClick={() => handleDownload(report, 'excel')}>
+                  Excel
+                </Button>
+              </div>
             </div>
           </article>
         ))}

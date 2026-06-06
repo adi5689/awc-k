@@ -5,7 +5,7 @@ export type WorkerAlert = {
   title: string;
   description: string;
   severity: 'critical' | 'warning';
-  category: 'nutrition' | 'attendance' | 'operations';
+  category: 'care' | 'attendance' | 'operations';
   childName?: string;
   metric?: string;
   recommendedAction: string;
@@ -22,20 +22,20 @@ export function getWorkerContext() {
 export function getWorkerAlerts(): WorkerAlert[] {
   const { currentAWC, centerChildren } = getWorkerContext();
 
-  const criticalNutritionAlerts = centerChildren
+  const criticalCareAlerts = centerChildren
     .filter(
       (child) =>
         child.nutritionStatus === 'status.sam' || child.riskFlags.combinedRisk === 'High'
     )
     .map((child) => ({
-      id: `nutrition-${child.id}`,
-      title: `${child.name} needs urgent nutrition follow-up`,
-      description: `${child.name} is flagged for severe nutrition risk and should be reviewed today.`,
+      id: `care-${child.id}`,
+      title: `${child.name} needs urgent follow-up`,
+      description: `${child.name} is flagged for high priority review and should be checked today.`,
       severity: 'critical' as const,
-      category: 'nutrition' as const,
+      category: 'care' as const,
       childName: child.name,
-      metric: child.nutritionStatus === 'status.sam' ? 'SAM flagged' : 'High combined risk',
-      recommendedAction: 'Review nutrition record and arrange referral support.',
+      metric: 'High combined risk',
+      recommendedAction: 'Review the child profile and arrange referral support if needed.',
     }));
 
   const attendanceAlerts = centerChildren
@@ -61,5 +61,5 @@ export function getWorkerAlerts(): WorkerAlert[] {
     recommendedAction: 'Review centre operations and escalate to supervisor if needed.',
   }));
 
-  return [...criticalNutritionAlerts, ...attendanceAlerts, ...operationalAlerts];
+  return [...criticalCareAlerts, ...attendanceAlerts, ...operationalAlerts];
 }

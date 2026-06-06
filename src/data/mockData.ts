@@ -17,8 +17,8 @@ export const mockUsers: Record<string, User> = {
     name: 'Sunita Devi',
     role: 'worker',
     avatar: '',
-    district: 'Ganjam',
-    block: 'Chhatrapur',
+    district: 'Kalahandi',
+    block: 'Bhawanipatna',
     awcId: 'awc1',
   },
   supervisor: {
@@ -26,28 +26,28 @@ export const mockUsers: Record<string, User> = {
     name: 'Rajesh Kumar',
     role: 'supervisor',
     avatar: '',
-    district: 'Ganjam',
-    block: 'Chhatrapur',
+    district: 'Kalahandi',
+    block: 'Bhawanipatna',
   },
   admin: {
     id: 'u3',
     name: 'Dr. Anita Patel',
     role: 'admin',
     avatar: '',
-    district: 'Ganjam',
+    district: 'Kalahandi',
   },
 };
 
 // ---- BLOCKS for Supervisor & Admin ----
 export const mockBlocks: Block[] = [
-  { id: 'b1', name: 'Chhatrapur', districtId: 'd1', totalAWCs: 24, totalChildren: 720, nutritionRiskPercent: 12, avgLearningScore: 68, performance: 'Good' },
-  { id: 'b2', name: 'Rangeilunda', districtId: 'd1', totalAWCs: 18, totalChildren: 540, nutritionRiskPercent: 22, avgLearningScore: 55, performance: 'Average' },
-  { id: 'b3', name: 'Ganjam', districtId: 'd1', totalAWCs: 30, totalChildren: 900, nutritionRiskPercent: 8, avgLearningScore: 74, performance: 'Good' },
-  { id: 'b4', name: 'Khallikote', districtId: 'd1', totalAWCs: 15, totalChildren: 450, nutritionRiskPercent: 35, avgLearningScore: 42, performance: 'Poor' },
-  { id: 'b5', name: 'Purusottampur', districtId: 'd1', totalAWCs: 20, totalChildren: 600, nutritionRiskPercent: 18, avgLearningScore: 61, performance: 'Average' },
-  { id: 'b6', name: 'Kabisuryanagar', districtId: 'd1', totalAWCs: 22, totalChildren: 660, nutritionRiskPercent: 10, avgLearningScore: 72, performance: 'Good' },
-  { id: 'b7', name: 'Beguniapada', districtId: 'd1', totalAWCs: 12, totalChildren: 360, nutritionRiskPercent: 28, avgLearningScore: 48, performance: 'Poor' },
-  { id: 'b8', name: 'Patrapur', districtId: 'd1', totalAWCs: 16, totalChildren: 480, nutritionRiskPercent: 15, avgLearningScore: 65, performance: 'Average' },
+  { id: 'b1', name: 'Bhawanipatna', districtId: 'd1', totalAWCs: 24, totalChildren: 720, nutritionRiskPercent: 12, avgLearningScore: 68, performance: 'Good' },
+  { id: 'b2', name: 'Junagarh', districtId: 'd1', totalAWCs: 18, totalChildren: 540, nutritionRiskPercent: 22, avgLearningScore: 55, performance: 'Average' },
+  { id: 'b3', name: 'Kesinga', districtId: 'd1', totalAWCs: 30, totalChildren: 900, nutritionRiskPercent: 8, avgLearningScore: 74, performance: 'Good' },
+  { id: 'b4', name: 'Dharamgarh', districtId: 'd1', totalAWCs: 15, totalChildren: 450, nutritionRiskPercent: 35, avgLearningScore: 42, performance: 'Poor' },
+  { id: 'b5', name: 'Lanjigarh', districtId: 'd1', totalAWCs: 20, totalChildren: 600, nutritionRiskPercent: 18, avgLearningScore: 61, performance: 'Average' },
+  { id: 'b6', name: 'Narla', districtId: 'd1', totalAWCs: 22, totalChildren: 660, nutritionRiskPercent: 10, avgLearningScore: 72, performance: 'Good' },
+  { id: 'b7', name: 'Karlamunda', districtId: 'd1', totalAWCs: 12, totalChildren: 360, nutritionRiskPercent: 28, avgLearningScore: 48, performance: 'Poor' },
+  { id: 'b8', name: 'Thuamul Rampur', districtId: 'd1', totalAWCs: 16, totalChildren: 480, nutritionRiskPercent: 15, avgLearningScore: 65, performance: 'Average' },
 ];
 
 // ---- AWCs for Supervisor view ----
@@ -116,8 +116,8 @@ export const mockAWCs: AWC[] = [
     syncStatus: 'synced'
   },
   {
-    id: 'awc8', name: 'AWC Chatrapur-8', workerName: 'Basanti Sahu', workerPhone: '9876543217',
-    location: 'Chatrapur Ward-8', gpId: 'gp4', blockId: 'b1',
+    id: 'awc8', name: 'AWC Bhawanipatna-8', workerName: 'Basanti Sahu', workerPhone: '9876543217',
+    location: 'Bhawanipatna Ward-8', gpId: 'gp4', blockId: 'b1',
     totalChildren: 36, presentToday: 24, criticalCases: 2,
     status: 'Warning', alerts: ['Attendance below target', '2 immunization follow-ups due'],
     avgLearningScore: 61, nutritionBreakdown: { normal: 29, mam: 5, sam: 2 },

@@ -25,19 +25,16 @@ export function WorkerInsights() {
 
   // Build worker-specific insights from children data
   const atRiskChildren = mockChildren.filter(c => c.riskFlags.combinedRisk !== 'Low');
-  const samChildren = mockChildren.filter(c => c.nutritionStatus === 'SAM');
+  const highPriorityChildren = mockChildren.filter(c => c.riskFlags.combinedRisk === 'High');
   const lowAttendance = mockChildren.filter(c => c.attendanceRate < 75);
   const lowLearning = mockChildren.filter(c => c.learningScore < 40);
 
   const workerInsights = [
-    ...(samChildren.length > 0 ? [{
+    ...(highPriorityChildren.length > 0 ? [{
       id: 'wi1', type: 'critical' as const, icon: AlertCircle,
-      title: t('insights.sam_critical', { count: samChildren.length }),
-      message: t('insights.sam_message', { 
-        names: samChildren.map(c => c.name).join(', '), 
-        verb: samChildren.length > 1 ? t('status.verb_need') : t('status.verb_needs') 
-      }),
-      action: t('insights.action.nrc'),
+      title: `${highPriorityChildren.length} high-priority ${highPriorityChildren.length === 1 ? 'child needs' : 'children need'} review`,
+      message: `${highPriorityChildren.map(c => c.name).join(', ')} should be reviewed today based on combined risk signals.`,
+      action: 'Open child profile',
     }] : []),
     ...(lowAttendance.length > 0 ? [{
       id: 'wi2', type: 'warning' as const, icon: AlertTriangle,
@@ -105,8 +102,8 @@ export function WorkerInsights() {
           <p className="text-xs text-muted-foreground mt-1">{t('insights.at_risk')}</p>
         </div>
         <div className="p-4 rounded-xl border border-border bg-card text-center">
-          <p className="text-2xl font-bold text-amber-600">{samChildren.length + mockChildren.filter(c => c.nutritionStatus === 'MAM').length}</p>
-          <p className="text-xs text-muted-foreground mt-1">{t('insights.nutrition_alerts')}</p>
+          <p className="text-2xl font-bold text-amber-600">{lowAttendance.length}</p>
+          <p className="text-xs text-muted-foreground mt-1">Attendance follow-ups</p>
         </div>
         <div className="p-4 rounded-xl border border-border bg-card text-center">
           <p className="text-2xl font-bold text-blue-600">{lowLearning.length}</p>
