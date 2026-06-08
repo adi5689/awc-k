@@ -18,6 +18,8 @@ export type TranslationKey =
   | 'nav.district'
   | 'nav.heatmap'
   | 'nav.reports'
+  | 'nav.poshan_upload'
+  | 'nav.nutrition_forecast'
   | 'header.title'
   | 'header.subtitle'
   | 'header.online'
@@ -528,6 +530,8 @@ export const translations: Record<'en' | 'od', Record<string, string>> = {
     'nav.district': 'District Dashboard',
     'nav.heatmap': 'Heatmap',
     'nav.reports': 'Reports',
+    'nav.poshan_upload': 'Poshan Upload',
+    'nav.nutrition_forecast': 'Nutrition Forecast',
     'nav.group.dashboard': 'Dashboard',
     'nav.group.children': 'Children',
     'nav.group.learning': 'Learning',

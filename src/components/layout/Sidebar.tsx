@@ -11,7 +11,9 @@ import { useTranslation } from '../../hooks/useTranslation';
 import {
   LayoutDashboard, Users, Brain, BookOpen, Activity,
   Map, Settings, ChevronLeft, ChevronRight, ChevronDown,
-  LogOut, Sparkles, ClipboardList, PenTool, HeartPulse, Syringe, CalendarDays, FileBarChart2, WifiOff, BrainCircuit, Route, GraduationCap, ShieldCheck, PlugZap, MoreHorizontal
+  LogOut, Sparkles, ClipboardList, PenTool, HeartPulse, Syringe, CalendarDays,
+  FileBarChart2, WifiOff, BrainCircuit, Route, GraduationCap, ShieldCheck,
+  PlugZap, MoreHorizontal, UploadCloud,
 } from 'lucide-react';
 
 const workerNavGroups = [
@@ -42,6 +44,11 @@ const workerNavGroups = [
     label: 'nav.group.attendance',
     collapsible: false,
     items: [{ name: 'nav.daily_attendance', icon: CalendarDays, path: '/worker/attendance' }],
+  },
+  {
+    label: 'nav.group.nutrition_health',
+    collapsible: false,
+    items: [{ name: 'nav.nutrition_forecast', icon: HeartPulse, path: '/worker/nutrition-forecast' }],
   },
   {
     label: 'nav.group.reports',
@@ -91,6 +98,7 @@ const supervisorNavGroups = [
     collapsible: true,
     items: [
       { name: 'nav.nutrition_tracking', icon: HeartPulse, path: '/supervisor/nutrition' },
+      { name: 'nav.poshan_upload', icon: UploadCloud, path: '/supervisor/poshan-upload' },
       { name: 'nav.predictive_risk', icon: Route, path: '/supervisor/predictive-risk' },
       { name: 'nav.immunization_coverage', icon: Syringe, path: '/supervisor/immunization' },
     ],
@@ -109,6 +117,7 @@ const adminNav = [
   { name: 'nav.district', icon: LayoutDashboard, path: '/admin' },
   { name: 'nav.heatmap', icon: Map, path: '/admin/heatmap' },
   { name: 'nav.insights', icon: Brain, path: '/admin/insights' },
+  { name: 'nav.poshan_upload', icon: UploadCloud, path: '/admin/poshan-upload' },
   { name: 'nav.reports', icon: Activity, path: '/admin/reports' },
   { name: 'nav.training', icon: GraduationCap, path: '/admin/training' },
   { name: 'nav.system_monitoring', icon: ShieldCheck, path: '/admin/system-monitoring' },

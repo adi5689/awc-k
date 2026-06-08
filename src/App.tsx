@@ -23,6 +23,8 @@ import { Immunization } from './pages/worker/Immunization';
 import { Attendance } from './pages/worker/Attendance';
 import { Reports } from './pages/worker/Reports';
 import { OfflineSync } from './pages/worker/OfflineSync';
+import { PoshanTrackerUpload } from './pages/worker/PoshanTrackerUpload';
+import { WorkerNutritionForecast } from './pages/worker/WorkerNutritionForecast';
 
 // Supervisor pages
 import { SupervisorDashboard } from './pages/supervisor/SupervisorDashboard';
@@ -60,6 +62,8 @@ export default function App() {
         <Route path="immunization" element={<Immunization />} />
         <Route path="attendance" element={<Attendance />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="nutrition-forecast" element={<WorkerNutritionForecast />} />
+        <Route path="poshan-upload" element={<Navigate to="/worker/nutrition-forecast" replace />} />
         <Route path="learning" element={<AdaptiveLearning />} />
         <Route path="learning-session" element={<LearningSession />} />
         <Route path="adaptive-learning" element={<WorkerAdaptiveLearning />} />
@@ -79,6 +83,7 @@ export default function App() {
         <Route path="child/:childId" element={<ChildProfile />} />
         <Route path="attendance" element={<SupervisorAttendance />} />
         <Route path="nutrition" element={<SupervisorNutrition />} />
+        <Route path="poshan-upload" element={<PoshanTrackerUpload />} />
         <Route path="predictive-risk" element={<SupervisorPredictiveRisk />} />
         <Route path="learning" element={<SupervisorLearning />} />
         <Route path="ai-dashboard" element={<SupervisorAIAssistedDashboard />} />
@@ -93,6 +98,7 @@ export default function App() {
         <Route path="heatmap" element={<AdminHeatmap />} />
         <Route path="insights" element={<AdminInsights />} />
         <Route path="reports" element={<AdminReports />} />
+        <Route path="poshan-upload" element={<PoshanTrackerUpload />} />
         <Route path="training" element={<TrainingKnowledgeBase />} />
         <Route path="system-monitoring" element={<SystemMonitoring />} />
         <Route path="integrations" element={<AdminIntegrations />} />
