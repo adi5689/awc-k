@@ -9,11 +9,11 @@ import { useAppStore } from '../../store/useAppStore';
 import { cn } from '../../utils';
 import { useTranslation } from '../../hooks/useTranslation';
 import {
-  LayoutDashboard, Users, Brain, BookOpen, Activity,
+  LayoutDashboard, Users, Activity, Brain, BookOpen, BrainCircuit,
   Map, Settings, ChevronLeft, ChevronRight, ChevronDown,
-  LogOut, Sparkles, ClipboardList, PenTool, HeartPulse, Syringe, CalendarDays,
-  FileBarChart2, WifiOff, BrainCircuit, Route, GraduationCap, ShieldCheck,
-  PlugZap, MoreHorizontal, UploadCloud,
+  LogOut, Sparkles, ClipboardList, HeartPulse, Syringe, CalendarDays,
+  FileBarChart2, WifiOff, Route, GraduationCap, ShieldCheck,
+  PlugZap, MoreHorizontal, UploadCloud, ClipboardCheck,
 } from 'lucide-react';
 
 const workerNavGroups = [
@@ -23,21 +23,16 @@ const workerNavGroups = [
     items: [{ name: 'nav.dashboard', icon: LayoutDashboard, path: '/worker' }],
   },
   {
+    label: 'nav.group.learning',
+    collapsible: false,
+    items: [{ name: 'nav.student_observations', icon: ClipboardCheck, path: '/worker/student-observations' }],
+  },
+  {
     label: 'nav.group.children',
     collapsible: true,
     items: [
       { name: 'nav.all_children', icon: Users, path: '/worker/children' },
       { name: 'nav.progress_tracking', icon: Activity, path: '/worker/progress-tracking' },
-    ],
-  },
-  {
-    label: 'nav.group.learning',
-    collapsible: true,
-    items: [
-      { name: 'nav.learning_progress', icon: BookOpen, path: '/worker/learning' },
-      { name: 'nav.learning_session', icon: BrainCircuit, path: '/worker/learning-session' },
-      { name: 'nav.adaptive_learning', icon: Brain, path: '/worker/adaptive-learning' },
-      { name: 'nav.whiteboard', icon: PenTool, path: '/worker/board' },
     ],
   },
   {

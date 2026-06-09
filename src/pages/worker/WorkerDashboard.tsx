@@ -19,9 +19,6 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar,
 } from 'recharts';
-import {
-  learningJourneyByTheme,
-} from '../../data/mockData';
 import { average, cn } from '../../utils';
 import { useTranslation } from '../../hooks/useTranslation';
 import { getWorkerAlerts, getWorkerContext } from './workerAlertData';
@@ -29,13 +26,14 @@ import {
   dashboardHealthSnapshot,
 } from '../../data/childMonitoringData';
 import { FunctionalScopeFlow, type ScopeFlowItem } from '../../components/FunctionalScopeFlow';
+import { lmsCoverageSummary } from '../../data/ecceLms';
 
 const workerScopeFlow: ScopeFlowItem[] = [
   {
     letter: 'A',
-    title: 'Adaptive learning',
-    description: 'Capture responses, score live, and adjust next activity difficulty.',
-    path: '/worker/learning-session',
+    title: 'ECCE LMS monitor',
+    description: 'Run the 120-minute planner, guided activity, rubric, evidence, and student observations.',
+    path: '/worker/student-observations',
   },
   {
     letter: 'B',
@@ -62,12 +60,9 @@ export function WorkerDashboard() {
   const { t } = useTranslation();
   const [attendanceView, setAttendanceView] = useState<'weekly' | 'monthly'>('weekly');
 
-  const todayActivities = learningJourneyByTheme['data.theme.family'];
   const { currentAWC, centerChildren } = getWorkerContext();
   const workerAlerts = getWorkerAlerts();
-  const completedActivities = todayActivities.filter((activity) => activity.completed).length;
 
-  const learningCompletion = Math.round((completedActivities / todayActivities.length) * 100);
   const avgAttendance = average(centerChildren.map((child) => child.attendanceRate));
 
   const weeklyTrendData = [
@@ -116,7 +111,7 @@ export function WorkerDashboard() {
                   <CalendarCheck2 size={18} />
                   {t('dashboard.actions.mark_attendance')}
                 </button>
-                <button onClick={() => navigate('/worker/learning')} className="rounded-2xl border border-border bg-card px-5 py-3 text-sm font-semibold text-foreground hover:bg-accent transition-colors">
+                <button onClick={() => navigate('/worker/student-observations')} className="rounded-2xl border border-border bg-card px-5 py-3 text-sm font-semibold text-foreground hover:bg-accent transition-colors">
                   {t('dashboard.hero.btn_learning')}
                 </button>
             </div>
@@ -141,11 +136,20 @@ export function WorkerDashboard() {
             meta: `${currentAWC.presentToday} present today`,
           },
           {
-            label: 'Learning Module Completion',
-            value: `${learningCompletion}%`,
+            label: 'ECCE Activity Repository',
+            value: lmsCoverageSummary.activities,
             icon: BookOpen,
             tone: 'emerald',
-            meta: `${completedActivities}/${todayActivities.length} modules done`,
+            meta: `${lmsCoverageSummary.domains} domains mapped`,
+            action: '/worker/student-observations',
+          },
+          {
+            label: 'Daily Planner',
+            value: `${lmsCoverageSummary.plannerMinutes}m`,
+            icon: Stars,
+            tone: 'violet',
+            meta: `${lmsCoverageSummary.rubricLevels} observation rubric levels`,
+            action: '/worker/student-observations',
           },
           {
             label: 'Classroom Attendance',
@@ -189,6 +193,7 @@ export function WorkerDashboard() {
               card.tone === 'sky' && 'border-sky-200/80 bg-[linear-gradient(145deg,rgba(240,249,255,0.98),rgba(224,242,254,0.75))] dark:border-sky-900 dark:bg-[linear-gradient(145deg,rgba(12,74,110,0.35),rgba(2,132,199,0.12))]',
               card.tone === 'emerald' && 'border-emerald-200/80 bg-[linear-gradient(145deg,rgba(236,253,245,0.98),rgba(209,250,229,0.72))] dark:border-emerald-900 dark:bg-[linear-gradient(145deg,rgba(6,78,59,0.35),rgba(16,185,129,0.12))]',
               card.tone === 'amber' && 'border-amber-200/80 bg-[linear-gradient(145deg,rgba(255,251,235,0.98),rgba(254,243,199,0.74))] dark:border-amber-900 dark:bg-[linear-gradient(145deg,rgba(120,53,15,0.35),rgba(245,158,11,0.12))]',
+              card.tone === 'violet' && 'border-violet-200/80 bg-[linear-gradient(145deg,rgba(245,243,255,0.98),rgba(237,233,254,0.72))] dark:border-violet-900 dark:bg-[linear-gradient(145deg,rgba(76,29,149,0.35),rgba(139,92,246,0.12))]',
               card.tone === 'red' && 'border-red-200/80 bg-[linear-gradient(145deg,rgba(254,242,242,0.98),rgba(254,226,226,0.75))] dark:border-red-900 dark:bg-[linear-gradient(145deg,rgba(127,29,29,0.35),rgba(239,68,68,0.12))]',
               card.action && 'cursor-pointer hover:-translate-y-1 hover:shadow-xl'
             )}
@@ -207,6 +212,7 @@ export function WorkerDashboard() {
                 card.tone === 'sky' && 'bg-sky-300/30 dark:bg-sky-400/20',
                 card.tone === 'emerald' && 'bg-emerald-300/30 dark:bg-emerald-400/20',
                 card.tone === 'amber' && 'bg-amber-300/30 dark:bg-amber-400/20',
+                card.tone === 'violet' && 'bg-violet-300/30 dark:bg-violet-400/20',
                 card.tone === 'red' && 'bg-red-300/30 dark:bg-red-400/20',
               )}
             />
@@ -223,6 +229,7 @@ export function WorkerDashboard() {
                 card.tone === 'sky' && 'border-sky-200 bg-white/80 text-sky-700 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-300',
                 card.tone === 'emerald' && 'border-emerald-200 bg-white/80 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300',
                 card.tone === 'amber' && 'border-amber-200 bg-white/80 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
+                card.tone === 'violet' && 'border-violet-200 bg-white/80 text-violet-700 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-300',
                 card.tone === 'red' && 'border-red-200 bg-white/80 text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300',
               )}>
                 <card.icon size={20} />

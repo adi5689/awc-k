@@ -11,9 +11,7 @@ import { LoginPage } from './pages/auth/LoginPage';
 import { WorkerDashboard } from './pages/worker/WorkerDashboard';
 import { WorkerChildren } from './pages/worker/WorkerChildren';
 import { ChildProfile } from './pages/worker/ChildProfile';
-import { AdaptiveLearning } from './pages/worker/AdaptiveLearning';
-import { WorkerAdaptiveLearning } from './pages/worker/WorkerAdaptiveLearning';
-import { LearningSession } from './pages/worker/LearningSession';
+import { StudentObservationRegister } from './pages/worker/StudentObservationRegister';
 import { ChildProgressTracking } from './pages/worker/ChildProgressTracking';
 import { AIAssistedDashboard } from './pages/worker/AIAssistedDashboard';
 import { GreenBoardPage } from './pages/worker/GreenBoardPage';
@@ -58,15 +56,16 @@ export default function App() {
         <Route index element={<WorkerDashboard />} />
         <Route path="child/:childId" element={<ChildProfile />} />
         <Route path="children" element={<WorkerChildren />} />
+        <Route path="student-observations" element={<StudentObservationRegister />} />
         <Route path="progress-tracking" element={<ChildProgressTracking />} />
         <Route path="immunization" element={<Immunization />} />
         <Route path="attendance" element={<Attendance />} />
         <Route path="reports" element={<Reports />} />
         <Route path="nutrition-forecast" element={<WorkerNutritionForecast />} />
         <Route path="poshan-upload" element={<Navigate to="/worker/nutrition-forecast" replace />} />
-        <Route path="learning" element={<AdaptiveLearning />} />
-        <Route path="learning-session" element={<LearningSession />} />
-        <Route path="adaptive-learning" element={<WorkerAdaptiveLearning />} />
+        <Route path="learning" element={<Navigate to="/worker/student-observations" replace />} />
+        <Route path="learning-session" element={<Navigate to="/worker/student-observations" replace />} />
+        <Route path="adaptive-learning" element={<Navigate to="/worker/student-observations" replace />} />
         <Route path="board" element={<GreenBoardPage />} />
         <Route path="alerts" element={<WorkerAlerts />} />
         <Route path="ai-dashboard" element={<AIAssistedDashboard />} />

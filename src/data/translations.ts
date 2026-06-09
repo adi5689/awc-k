@@ -20,6 +20,7 @@ export type TranslationKey =
   | 'nav.reports'
   | 'nav.poshan_upload'
   | 'nav.nutrition_forecast'
+  | 'nav.student_observations'
   | 'header.title'
   | 'header.subtitle'
   | 'header.online'
@@ -532,6 +533,7 @@ export const translations: Record<'en' | 'od', Record<string, string>> = {
     'nav.reports': 'Reports',
     'nav.poshan_upload': 'Poshan Upload',
     'nav.nutrition_forecast': 'Nutrition Forecast',
+    'nav.student_observations': 'ECCE LMS Monitor',
     'nav.group.dashboard': 'Dashboard',
     'nav.group.children': 'Children',
     'nav.group.learning': 'Learning',
@@ -1193,6 +1195,7 @@ export const translations: Record<'en' | 'od', Record<string, string>> = {
     'status.poor': 'Poor',
   },
   od: {
+    'nav.student_observations': 'ECCE LMS Monitor',
     // Header
     'header.title': 'ସ୍ମାର୍ଟ ଆଙ୍ଗନୱାଡି',
     'header.subtitle': 'ICDS କାର୍ଯ୍ୟପରିଚାଳନା, ଶିଶୁ ବିକାଶ ଓ ଅଭିଭାବକ ସହଭାଗିତା',
