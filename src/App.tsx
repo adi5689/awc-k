@@ -23,6 +23,16 @@ import { Reports } from './pages/worker/Reports';
 import { OfflineSync } from './pages/worker/OfflineSync';
 import { PoshanTrackerUpload } from './pages/worker/PoshanTrackerUpload';
 import { WorkerNutritionForecast } from './pages/worker/WorkerNutritionForecast';
+import { Development } from './pages/worker/Development';
+import { GrowthMonitoring } from './pages/worker/GrowthMonitoring';
+import { Health } from './pages/worker/Health';
+import { HealthNutrition } from './pages/worker/HealthNutrition';
+import { Nutrition } from './pages/worker/Nutrition';
+import { ParentEngagement } from './pages/worker/ParentEngagement';
+import { PredictiveRisk } from './pages/worker/PredictiveRisk';
+import { LearningSession } from './pages/worker/LearningSession';
+import { AdaptiveLearning } from './pages/worker/AdaptiveLearning';
+import { WorkerAdaptiveLearning } from './pages/worker/WorkerAdaptiveLearning';
 
 // Supervisor pages
 import { SupervisorDashboard } from './pages/supervisor/SupervisorDashboard';
@@ -38,11 +48,28 @@ import { SupervisorPredictiveRisk } from './pages/supervisor/SupervisorPredictiv
 
 // Admin pages
 import { AdminDashboard } from './pages/admin/AdminDashboard';
-import { AdminHeatmap } from './pages/admin/AdminHeatmap';
-import { AdminInsights } from './pages/admin/AdminInsights';
+import { AdminCenterUserManagement } from './pages/admin/AdminCenterUserManagement';
+import { AdminOfficialsManagement } from './pages/admin/AdminOfficialsManagement';
+import { AdminLearningModules } from './pages/admin/AdminLearningModules';
+import { AdminActivities } from './pages/admin/AdminActivities';
+import { AdminPoshanUploads } from './pages/admin/AdminPoshanUploads';
+import { AdminPredictions } from './pages/admin/AdminPredictions';
+import { AdminCenterPerformance } from './pages/admin/AdminCenterPerformance';
+import { AdminCenterProfile } from './pages/admin/AdminCenterProfile';
 import { AdminReports } from './pages/admin/AdminReports';
-import { SystemMonitoring } from './pages/admin/SystemMonitoring';
-import { AdminIntegrations } from './pages/admin/AdminIntegrations';
+import { AdminSettings } from './pages/admin/AdminSettings';
+
+// Officials pages
+import { OfficialsDashboard } from './pages/officials/OfficialsDashboard';
+import { OfficialsCentersOverview } from './pages/officials/OfficialsCentersOverview';
+import { OfficialsNutritionForecast } from './pages/officials/OfficialsNutritionForecast';
+import { OfficialsForecastDetail } from './pages/officials/OfficialsForecastDetail';
+import { OfficialsLearningDetails } from './pages/officials/OfficialsLearningDetails';
+import { OfficialsCenterDetails } from './pages/officials/OfficialsCenterDetails';
+import { OfficialsMonthlyReports } from './pages/officials/OfficialsMonthlyReports';
+import { OfficialsReportDetail } from './pages/officials/OfficialsReportDetail';
+import { OfficialsAlerts } from './pages/officials/OfficialsAlerts';
+import { OfficialsProfile } from './pages/officials/OfficialsProfile';
 import { TrainingKnowledgeBase } from './pages/shared/TrainingKnowledgeBase';
 
 export default function App() {
@@ -62,6 +89,17 @@ export default function App() {
         <Route path="attendance" element={<Attendance />} />
         <Route path="reports" element={<Reports />} />
         <Route path="nutrition-forecast" element={<WorkerNutritionForecast />} />
+        <Route path="development" element={<Development />} />
+        <Route path="growth-monitoring" element={<GrowthMonitoring />} />
+        <Route path="health" element={<Health />} />
+        <Route path="health-nutrition" element={<HealthNutrition />} />
+        <Route path="nutrition" element={<Nutrition />} />
+        <Route path="parent-engagement" element={<ParentEngagement />} />
+        <Route path="predictive-risk" element={<PredictiveRisk />} />
+        <Route path="learning-session-live" element={<LearningSession />} />
+        <Route path="adaptive-learning-lab" element={<AdaptiveLearning />} />
+        <Route path="worker-adaptive-learning" element={<WorkerAdaptiveLearning />} />
+        <Route path="poshan-tracker-upload" element={<PoshanTrackerUpload />} />
         <Route path="poshan-upload" element={<Navigate to="/worker/nutrition-forecast" replace />} />
         <Route path="learning" element={<Navigate to="/worker/student-observations" replace />} />
         <Route path="learning-session" element={<Navigate to="/worker/student-observations" replace />} />
@@ -94,13 +132,36 @@ export default function App() {
       {/* Admin Routes */}
       <Route path="/admin" element={<AppLayout />}>
         <Route index element={<AdminDashboard />} />
-        <Route path="heatmap" element={<AdminHeatmap />} />
-        <Route path="insights" element={<AdminInsights />} />
+        <Route path="centers-users" element={<AdminCenterUserManagement />} />
+        <Route path="officials-management" element={<AdminOfficialsManagement />} />
+        <Route path="learning-modules" element={<AdminLearningModules />} />
+        <Route path="activities" element={<AdminActivities />} />
+        <Route path="poshan-uploads" element={<AdminPoshanUploads />} />
+        <Route path="ai-predictions" element={<AdminPredictions />} />
+        <Route path="center-performance" element={<AdminCenterPerformance />} />
+        <Route path="center-performance/:centerId" element={<AdminCenterProfile />} />
         <Route path="reports" element={<AdminReports />} />
-        <Route path="poshan-upload" element={<PoshanTrackerUpload />} />
+        <Route path="settings" element={<AdminSettings />} />
+        <Route path="poshan-upload" element={<Navigate to="/admin/poshan-uploads" replace />} />
         <Route path="training" element={<TrainingKnowledgeBase />} />
-        <Route path="system-monitoring" element={<SystemMonitoring />} />
-        <Route path="integrations" element={<AdminIntegrations />} />
+        <Route path="heatmap" element={<Navigate to="/admin/center-performance" replace />} />
+        <Route path="insights" element={<Navigate to="/admin/ai-predictions" replace />} />
+        <Route path="system-monitoring" element={<Navigate to="/admin/settings" replace />} />
+        <Route path="integrations" element={<Navigate to="/admin/settings" replace />} />
+      </Route>
+
+      {/* Officials Routes */}
+      <Route path="/officials" element={<AppLayout />}>
+        <Route index element={<OfficialsDashboard />} />
+        <Route path="centers" element={<OfficialsCentersOverview />} />
+        <Route path="nutrition-forecast" element={<OfficialsNutritionForecast />} />
+        <Route path="forecast/:forecastId" element={<OfficialsForecastDetail />} />
+        <Route path="learning-details" element={<OfficialsLearningDetails />} />
+        <Route path="center/:centerId" element={<OfficialsCenterDetails />} />
+        <Route path="reports" element={<OfficialsMonthlyReports />} />
+        <Route path="reports/:reportId" element={<OfficialsReportDetail />} />
+        <Route path="alerts" element={<OfficialsAlerts />} />
+        <Route path="profile" element={<OfficialsProfile />} />
       </Route>
 
       {/* Default: redirect to login */}

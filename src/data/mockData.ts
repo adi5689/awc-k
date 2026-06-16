@@ -36,6 +36,14 @@ export const mockUsers: Record<string, User> = {
     avatar: '',
     district: 'Kalahandi',
   },
+  official: {
+    id: 'u4',
+    name: 'Sanjay Pradhan',
+    role: 'official',
+    avatar: '',
+    district: 'Kalahandi',
+    block: 'Bhawanipatna',
+  },
 };
 
 // ---- BLOCKS for Supervisor & Admin ----

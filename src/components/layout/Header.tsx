@@ -3,12 +3,14 @@
 // ============================================================
 
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
 import { cn, formatRelativeTime } from '../../utils';
 import { useTranslation } from '../../hooks/useTranslation';
 import {
   Bell, Sun, Moon, Wifi, WifiOff, RefreshCcw,
   CheckCheck, X, AlertTriangle, AlertCircle, Info, CheckCircle2,
+  Search, ChevronDown, LogOut,
 } from 'lucide-react';
 
 export function Header() {
@@ -19,12 +21,17 @@ export function Header() {
     notifications, unreadCount, markNotificationRead, markAllNotificationsRead,
     syncQueue, processSyncQueue,
     currentUser,
+    userRole,
+    logout,
   } = useAppStore();
 
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -32,12 +39,17 @@ export function Header() {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setShowNotifications(false);
       }
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setShowProfileMenu(false);
+      }
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
   const pendingSync = syncQueue.filter(i => i.status === 'pending' || i.status === 'syncing').length;
+  const roleLabel = userRole === 'worker' ? 'Worker' : userRole === 'supervisor' ? 'Supervisor' : userRole === 'official' ? 'Official' : 'Admin';
+  const rolePath = userRole === 'official' ? '/officials/profile' : userRole === 'admin' ? '/admin/settings' : userRole === 'supervisor' ? '/supervisor/reports' : '/worker/children';
 
   const getSeverityIcon = (severity?: string) => {
     switch (severity) {
@@ -63,10 +75,22 @@ export function Header() {
         </h1>
         <p className="hidden md:block text-xs text-muted-foreground">{t('header.subtitle')}</p>
         </div>
+        <div className="hidden lg:flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground">
+          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700">{roleLabel}</span>
+          <span>{currentUser?.district ?? 'District Workspace'}</span>
+        </div>
       </div>
 
       {/* Right: Controls */}
       <div className="flex items-center gap-2 md:gap-3">
+        <div className="hidden xl:flex items-center rounded-2xl border border-border bg-card px-3 py-2 shadow-sm">
+          <Search size={15} className="text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search centers, reports, alerts..."
+            className="ml-2 w-64 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+          />
+        </div>
         <div className="hidden sm:flex items-center rounded-xl border border-border bg-card p-1 shadow-sm">
           <button
             onClick={() => setLanguage('en')}
@@ -197,8 +221,47 @@ export function Header() {
         </div>
 
         {/* User Avatar */}
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-400 via-emerald-500 to-amber-400 flex items-center justify-center text-white text-xs font-bold shadow-md">
-          {currentUser?.name?.charAt(0) || 'U'}
+        <div className="relative" ref={profileRef}>
+          <button
+            onClick={() => setShowProfileMenu((open) => !open)}
+            className="flex items-center gap-2 rounded-2xl border border-border bg-card px-2 py-1.5 shadow-sm transition hover:bg-accent"
+          >
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-400 via-emerald-500 to-amber-400 flex items-center justify-center text-white text-xs font-bold shadow-md">
+              {currentUser?.name?.charAt(0) || 'U'}
+            </div>
+            <div className="hidden text-left lg:block">
+              <p className="text-sm font-semibold text-foreground">{currentUser?.name}</p>
+              <p className="text-xs text-muted-foreground">{roleLabel}</p>
+            </div>
+            <ChevronDown size={16} className="hidden text-muted-foreground lg:block" />
+          </button>
+          {showProfileMenu && (
+            <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-border bg-card p-2 shadow-2xl">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowProfileMenu(false);
+                  navigate(rolePath);
+                }}
+                className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm text-foreground transition hover:bg-accent"
+              >
+                Open profile
+                <ChevronDown size={14} className="-rotate-90 text-muted-foreground" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowProfileMenu(false);
+                  logout();
+                  navigate('/login', { replace: true });
+                }}
+                className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-red-600 transition hover:bg-red-50"
+              >
+                <LogOut size={14} />
+                Sign out
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

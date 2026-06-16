@@ -21,6 +21,13 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select';
 import { cn } from '../../utils';
 import { getWorkerContext } from './workerAlertData';
 
@@ -52,8 +59,6 @@ type ChildForecast = {
   chart: ForecastPoint[];
   historyChart: ForecastPoint[];
 };
-
-const monthWindow = ['Apr', 'May', 'Jun', 'Jul', 'Aug'];
 
 function normalizeBand(status: string, muac: number): NutritionBand {
   const text = status.toLowerCase();
@@ -93,11 +98,28 @@ function warningFor(secondMonth: NutritionBand, nextMonth: NutritionBand, trend:
   return trend < -1 ? 'Healthy now, but MUAC is falling. Keep on watch list.' : 'Healthy trajectory. Routine monthly monitoring.';
 }
 
-function buildForecasts(): ChildForecast[] {
+function fullMonthLabel(date: string) {
+  return new Date(date).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+}
+
+function monthLabel(date: string) {
+  return new Date(date).toLocaleDateString('en-IN', { month: 'short' });
+}
+
+function addMonthsLabel(date: string, months: number) {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months);
+  return next.toLocaleDateString('en-IN', { month: 'short' });
+}
+
+function buildForecasts(selectedMonthIndex: number): ChildForecast[] {
   const { centerChildren } = getWorkerContext();
 
   return centerChildren.map((child) => {
-    const history = child.nutritionHistory.slice(-3);
+    const selectedEntry = child.nutritionHistory[selectedMonthIndex] ?? child.nutritionHistory.at(-1);
+    const selectedIndex = Math.max(0, child.nutritionHistory.findIndex((entry) => entry.date === selectedEntry?.date));
+    const recordedWindow = child.nutritionHistory.slice(0, selectedIndex + 1);
+    const history = recordedWindow.slice(-3);
     const fallback = history.at(-1) ?? { date: '2026-06-01', weight: 12, height: 88, muac: 130, status: 'Normal' };
     const latest = history.at(-1) ?? fallback;
     const previous = history.at(-2);
@@ -108,7 +130,7 @@ function buildForecasts(): ChildForecast[] {
     const weightTrend = previous ? Number((latest.weight - previous.weight).toFixed(1)) : 0.2;
 
     const historicalPoints = history.map((entry, index) => ({
-      month: monthWindow[Math.max(0, 2 - history.length + index)],
+      month: monthLabel(entry.date),
       muac: entry.muac,
       weight: entry.weight,
       height: entry.height,
@@ -117,15 +139,15 @@ function buildForecasts(): ChildForecast[] {
     }));
 
     const current: ForecastPoint = {
-      month: 'Jun',
+      month: monthLabel(latest.date),
       muac: latest.muac,
       weight: latest.weight,
       height: latest.height,
-      band: normalizeBand(String(child.nutritionStatus), latest.muac),
+      band: normalizeBand(String(latest.status), latest.muac),
       projected: false,
     };
     const nextMonth: ForecastPoint = {
-      month: 'Jul',
+      month: addMonthsLabel(latest.date, 1),
       muac: Math.round(latest.muac + projectedTrend),
       weight: Number((latest.weight + weightTrend).toFixed(1)),
       height: Number((latest.height + 0.8).toFixed(1)),
@@ -133,7 +155,7 @@ function buildForecasts(): ChildForecast[] {
       projected: true,
     };
     const secondMonth: ForecastPoint = {
-      month: 'Aug',
+      month: addMonthsLabel(latest.date, 2),
       muac: Math.round(latest.muac + projectedTrend * 2),
       weight: Number((latest.weight + weightTrend * 2).toFixed(1)),
       height: Number((latest.height + 1.6).toFixed(1)),
@@ -147,9 +169,9 @@ function buildForecasts(): ChildForecast[] {
         ? 'watch'
         : 'stable';
 
-    const dedupedHistory = historicalPoints.filter((point) => point.month !== 'Jun');
-    const fullHistory = child.nutritionHistory.slice(-6).map((entry) => ({
-      month: new Date(entry.date).toLocaleDateString('en-US', { month: 'short' }),
+    const dedupedHistory = historicalPoints.filter((point) => point.month !== current.month);
+    const fullHistory = recordedWindow.slice(-6).map((entry) => ({
+      month: monthLabel(entry.date),
       muac: entry.muac,
       weight: entry.weight,
       height: entry.height,
@@ -172,7 +194,7 @@ function buildForecasts(): ChildForecast[] {
       trend: Number(projectedTrend.toFixed(1)),
       confidence: Math.min(95, Math.max(68, 86 - Math.abs(projectedTrend) * 3 + (history.length >= 3 ? 6 : 0))),
       chart: [...dedupedHistory, current, nextMonth, secondMonth],
-      historyChart: [...fullHistory.filter((point) => point.month !== 'Jun'), current, nextMonth, secondMonth],
+      historyChart: [...fullHistory.filter((point) => point.month !== current.month), current, nextMonth, secondMonth],
     };
   }).sort((a, b) => {
     const rank: Record<ChildForecast['priority'], number> = { critical: 0, watch: 1, stable: 2 };
@@ -184,7 +206,21 @@ export function WorkerNutritionForecast() {
   const navigate = useNavigate();
   const { currentAWC } = getWorkerContext();
   const [search, setSearch] = useState('');
-  const forecasts = useMemo(() => buildForecasts(), []);
+  const monthUploads = useMemo(() => {
+    const { centerChildren } = getWorkerContext();
+    const baseHistory = centerChildren[0]?.nutritionHistory ?? [];
+    return baseHistory.map((entry, index) => ({
+      index,
+      date: entry.date,
+      label: fullMonthLabel(entry.date),
+      fileName: `poshan-${new Date(entry.date).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }).replace(/\s/g, '-').toLowerCase()}-upload.xlsx`,
+      uploadedBy: 'District Admin',
+      uploadedOn: new Date(entry.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+    }));
+  }, []);
+  const [selectedMonthIndex, setSelectedMonthIndex] = useState(() => Math.max(0, monthUploads.length - 1));
+  const selectedUpload = monthUploads[selectedMonthIndex] ?? monthUploads.at(-1);
+  const forecasts = useMemo(() => buildForecasts(selectedMonthIndex), [selectedMonthIndex]);
   const [expandedId, setExpandedId] = useState<string | null>(forecasts[0]?.id ?? null);
 
   const filteredForecasts = forecasts.filter((item) => {
@@ -199,6 +235,10 @@ export function WorkerNutritionForecast() {
     healthy: forecasts.filter((item) => item.secondMonth.band === 'Healthy').length,
   };
 
+  const selectedMonthLabel = selectedUpload?.label ?? forecasts[0]?.current.month ?? 'Current';
+  const nextMonthLabel = forecasts[0]?.nextMonth.month ?? 'Next';
+  const secondMonthLabel = forecasts[0]?.secondMonth.month ?? 'Second';
+
   const toggleChildHistory = (childId: string) => {
     setExpandedId((current) => (current === childId ? null : childId));
   };
@@ -211,11 +251,11 @@ export function WorkerNutritionForecast() {
             <div>
               <p className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-xs font-black uppercase tracking-[0.22em] text-emerald-700 shadow-sm dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
                 <CalendarDays size={14} />
-                June 2026 nutrition forecast
+                {selectedUpload?.label ?? 'Monthly'} nutrition forecast
               </p>
               <h2 className="mt-4 text-3xl font-black tracking-tight text-foreground md:text-4xl">{currentAWC.name}</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-                Centre-level student list with current June nutrition details and a two-month predictive warning for SAM, MAM, or healthy status.
+                Month-wise student nutrition ledger from the admin Excel upload, shown in the same format with two-month predictive warning for SAM, MAM, or healthy status.
               </p>
             </div>
             <button
@@ -234,13 +274,52 @@ export function WorkerNutritionForecast() {
         <Metric icon={Users} label="Students in centre" value={summary.total} tone="sky" />
         <Metric icon={ShieldAlert} label="SAM warning" value={summary.critical} tone="red" />
         <Metric icon={AlertTriangle} label="MAM watch" value={summary.watch} tone="amber" />
-        <Metric icon={CheckCircle2} label="Healthy in Aug" value={summary.healthy} tone="emerald" />
+        <Metric icon={CheckCircle2} label={`Healthy in ${secondMonthLabel}`} value={summary.healthy} tone="emerald" />
+      </section>
+
+      <section className="rounded-[1.75rem] border border-border bg-card p-5 shadow-sm">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-muted-foreground">Admin monthly Excel uploads</p>
+            <h3 className="mt-1 text-xl font-black text-foreground">Month-wise tracking</h3>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+              Each month reflects the uploaded nutrition sheet. Select a month to view the same child-wise ledger, forecast cards, trend chart, and warning logic for that upload cycle.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border bg-background/70 px-4 py-3 text-sm">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Selected file</p>
+            <p className="mt-1 font-black text-foreground">{selectedUpload?.fileName ?? 'No upload selected'}</p>
+            <p className="mt-1 text-xs font-semibold text-muted-foreground">{selectedUpload?.uploadedBy} - {selectedUpload?.uploadedOn}</p>
+          </div>
+        </div>
+
+        <div className="mt-5 max-w-md">
+          <p className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Choose month</p>
+          <Select
+            value={String(selectedMonthIndex)}
+            onValueChange={(value) => {
+              setSelectedMonthIndex(Number(value));
+              setExpandedId(null);
+            }}
+          >
+            <SelectTrigger className="h-14 rounded-2xl border-border bg-background/70 px-4 text-left text-sm font-semibold shadow-sm">
+              <SelectValue placeholder="Select month" />
+            </SelectTrigger>
+            <SelectContent>
+              {monthUploads.map((upload) => (
+                <SelectItem key={upload.date} value={String(upload.index)} className="py-3">
+                  {upload.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </section>
 
       <section className="rounded-[1.75rem] border border-border bg-card p-5 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-muted-foreground">June student ledger</p>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-muted-foreground">{selectedMonthLabel} student ledger</p>
             <h3 className="mt-1 text-xl font-black text-foreground">Nutrition details and 2-month warning</h3>
           </div>
           <div className="relative w-full max-w-md">
@@ -260,12 +339,12 @@ export function WorkerNutritionForecast() {
               <tr>
                 <th className="px-4 py-4">Student</th>
                 <th className="px-4 py-4">Age</th>
-                <th className="px-4 py-4">June Wt</th>
-                <th className="px-4 py-4">June Ht</th>
-                <th className="px-4 py-4">June MUAC</th>
+                <th className="px-4 py-4">{selectedMonthLabel} Wt</th>
+                <th className="px-4 py-4">{selectedMonthLabel} Ht</th>
+                <th className="px-4 py-4">{selectedMonthLabel} MUAC</th>
                 <th className="px-4 py-4">Current</th>
-                <th className="px-4 py-4">July</th>
-                <th className="px-4 py-4">August</th>
+                <th className="px-4 py-4">{nextMonthLabel}</th>
+                <th className="px-4 py-4">{secondMonthLabel}</th>
                 <th className="px-4 py-4">Warning</th>
                 <th className="px-4 py-4">Confidence</th>
               </tr>
@@ -356,7 +435,7 @@ export function WorkerNutritionForecast() {
 
                               <div className={cn('mt-5 rounded-2xl border p-4', bandSurfaceClasses(item.secondMonth.band))}>
                                 <div className="flex items-center justify-between gap-3">
-                                  <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">August status</p>
+                                  <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">{secondMonthLabel} status</p>
                                   <BandPill band={item.secondMonth.band} />
                                 </div>
                                 <div className="mt-4 space-y-3 text-sm">

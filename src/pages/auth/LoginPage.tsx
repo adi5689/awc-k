@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
 import type { UserRole } from '../../types';
-import { Users, Shield, Settings, Eye, EyeOff, Activity, ArrowRight, LockKeyhole, Mail, Sparkles } from 'lucide-react';
+import { Users, Shield, Settings, Eye, EyeOff, Activity, ArrowRight, LockKeyhole, Mail, Sparkles, Briefcase } from 'lucide-react';
 import AnoAI from '@/components/ui/animated-shader-background';
 
 // Role configuration with dummy credentials
@@ -15,6 +15,7 @@ const roles = [
   { id: 'worker' as UserRole, title: 'Worker', email: 'worker@neev.ai', password: 'password123', icon: Users },
   { id: 'supervisor' as UserRole, title: 'Supervisor', email: 'supervisor@neev.ai', password: 'password123', icon: Shield },
   { id: 'admin' as UserRole, title: 'Admin', email: 'admin@neev.ai', password: 'password123', icon: Settings },
+  { id: 'official' as UserRole, title: 'Official', email: 'official@neev.ai', password: 'password123', icon: Briefcase },
 ];
 
 export function LoginPage() {
@@ -50,11 +51,12 @@ export function LoginPage() {
       case 'worker': navigate('/worker', { replace: true }); break;
       case 'supervisor': navigate('/supervisor', { replace: true }); break;
       case 'admin': navigate('/admin', { replace: true }); break;
+      case 'official': navigate('/officials', { replace: true }); break;
     }
   };
 
   if (isAuthenticated && userRole) {
-    const targetPath = userRole === 'worker' ? '/worker' : userRole === 'supervisor' ? '/supervisor' : '/admin';
+    const targetPath = userRole === 'worker' ? '/worker' : userRole === 'supervisor' ? '/supervisor' : userRole === 'official' ? '/officials' : '/admin';
     return <Navigate to={targetPath} replace />;
   }
 
@@ -91,7 +93,7 @@ export function LoginPage() {
               Select a role or enter your assigned credentials.
             </p>
 
-            <div className="mt-8 grid grid-cols-3 gap-3">
+            <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
               {roles.map((role) => {
                 const Icon = role.icon;
                 const active = selectedRole === role.id;

@@ -13,7 +13,7 @@ import {
   Map, Settings, ChevronLeft, ChevronRight, ChevronDown,
   LogOut, Sparkles, ClipboardList, HeartPulse, Syringe, CalendarDays,
   FileBarChart2, WifiOff, Route, GraduationCap, ShieldCheck,
-  PlugZap, MoreHorizontal, UploadCloud, ClipboardCheck, PenTool,
+  PlugZap, MoreHorizontal, UploadCloud, ClipboardCheck, PenTool, Briefcase, Building2,
 } from 'lucide-react';
 
 const workerNavGroups = [
@@ -110,14 +110,27 @@ const supervisorNavGroups = [
 ];
 
 const adminNav = [
-  { name: 'nav.district', icon: LayoutDashboard, path: '/admin' },
-  { name: 'nav.heatmap', icon: Map, path: '/admin/heatmap' },
-  { name: 'nav.insights', icon: Brain, path: '/admin/insights' },
-  { name: 'nav.poshan_upload', icon: UploadCloud, path: '/admin/poshan-upload' },
-  { name: 'nav.reports', icon: Activity, path: '/admin/reports' },
-  { name: 'nav.training', icon: GraduationCap, path: '/admin/training' },
-  { name: 'nav.system_monitoring', icon: ShieldCheck, path: '/admin/system-monitoring' },
-  { name: 'nav.integrations', icon: PlugZap, path: '/admin/integrations' },
+  { name: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
+  { name: 'Center & User Management', icon: Building2, path: '/admin/centers-users' },
+  { name: 'Officials Management', icon: Briefcase, path: '/admin/officials-management' },
+  { name: 'Learning Modules', icon: GraduationCap, path: '/admin/learning-modules' },
+  { name: 'Activities', icon: ClipboardList, path: '/admin/activities' },
+  { name: 'Poshan Tracker Uploads', icon: UploadCloud, path: '/admin/poshan-uploads' },
+  { name: 'AI Predictions', icon: Brain, path: '/admin/ai-predictions' },
+  { name: 'Center Performance', icon: Activity, path: '/admin/center-performance' },
+  { name: 'Reports', icon: FileBarChart2, path: '/admin/reports' },
+  { name: 'Settings', icon: Settings, path: '/admin/settings' },
+];
+
+const officialNav = [
+  { name: 'Dashboard', icon: LayoutDashboard, path: '/officials' },
+  { name: 'Centers Overview', icon: Building2, path: '/officials/centers' },
+  { name: 'Nutrition Forecast', icon: HeartPulse, path: '/officials/nutrition-forecast' },
+  { name: 'Learning Details', icon: BookOpen, path: '/officials/learning-details' },
+  { name: 'Center Details', icon: ClipboardList, path: '/officials/center/AWC-1024' },
+  { name: 'Monthly Reports', icon: FileBarChart2, path: '/officials/reports' },
+  { name: 'Alerts', icon: ShieldCheck, path: '/officials/alerts' },
+  { name: 'Profile', icon: Settings, path: '/officials/profile' },
 ];
 
 export function Sidebar() {
@@ -126,6 +139,7 @@ export function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const isWorker = userRole === 'worker';
+  const isOfficial = userRole === 'official';
   const [dockMoreOpen, setDockMoreOpen] = useState(false);
 
   // Initialize open groups based on which group has the active route
@@ -219,9 +233,10 @@ export function Sidebar() {
               'inline-block mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full',
               userRole === 'worker' ? 'bg-emerald-900/50 text-emerald-400' :
               userRole === 'supervisor' ? 'bg-blue-900/50 text-blue-400' :
+              userRole === 'official' ? 'bg-amber-900/50 text-amber-300' :
               'bg-purple-900/50 text-purple-400'
             )}>
-              {userRole === 'worker' ? t('role.worker') : userRole === 'supervisor' ? t('role.supervisor') : t('role.admin')}
+              {userRole === 'worker' ? t('role.worker') : userRole === 'supervisor' ? t('role.supervisor') : userRole === 'official' ? 'Official' : t('role.admin')}
             </span>
           </div>
         </div>
@@ -295,22 +310,22 @@ export function Sidebar() {
             );
           })
         ) : (
-          adminNav.map((item) => (
+          (isOfficial ? officialNav : adminNav).map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
-              end={item.path === '/admin'}
+              end={item.path === '/admin' || item.path === '/officials'}
               className={({ isActive }) => cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-200 group',
                 isActive
                   ? 'bg-gradient-to-r from-emerald-500 via-green-500 to-sky-500 text-white shadow-lg shadow-emerald-900/25 font-medium'
                   : 'text-slate-300/80 hover:bg-white/10 hover:text-white'
               )}
-              title={sidebarCollapsed ? t(item.name) : undefined}
+              title={sidebarCollapsed ? (t(item.name) || item.name) : undefined}
             >
               <item.icon size={20} className="flex-shrink-0" />
               {!sidebarCollapsed && (
-                <span className="text-sm truncate">{t(item.name)}</span>
+                <span className="text-sm truncate">{t(item.name) || item.name}</span>
               )}
             </NavLink>
           ))

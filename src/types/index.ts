@@ -4,7 +4,7 @@
 // ============================================================
 
 // --- Auth & Roles ---
-export type UserRole = 'worker' | 'supervisor' | 'admin';
+export type UserRole = 'worker' | 'supervisor' | 'admin' | 'official';
 
 export interface User {
   id: string;
