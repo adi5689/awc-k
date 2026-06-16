@@ -39,7 +39,7 @@ const workerScopeFlow: ScopeFlowItem[] = [
     letter: 'B',
     title: 'Child profile',
     description: 'Review longitudinal progress, domain profile, and peer comparison.',
-    path: '/worker/progress-tracking',
+    path: '/worker/children',
   },
   {
     letter: 'C',

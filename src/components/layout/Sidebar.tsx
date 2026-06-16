@@ -13,7 +13,7 @@ import {
   Map, Settings, ChevronLeft, ChevronRight, ChevronDown,
   LogOut, Sparkles, ClipboardList, HeartPulse, Syringe, CalendarDays,
   FileBarChart2, WifiOff, Route, GraduationCap, ShieldCheck,
-  PlugZap, MoreHorizontal, UploadCloud, ClipboardCheck,
+  PlugZap, MoreHorizontal, UploadCloud, ClipboardCheck, PenTool,
 } from 'lucide-react';
 
 const workerNavGroups = [
@@ -24,15 +24,17 @@ const workerNavGroups = [
   },
   {
     label: 'nav.group.learning',
-    collapsible: false,
-    items: [{ name: 'nav.student_observations', icon: ClipboardCheck, path: '/worker/student-observations' }],
+    collapsible: true,
+    items: [
+      { name: 'nav.student_observations', icon: ClipboardCheck, path: '/worker/student-observations' },
+      { name: 'nav.whiteboard', icon: PenTool, path: '/worker/board' },
+    ],
   },
   {
     label: 'nav.group.children',
     collapsible: true,
     items: [
       { name: 'nav.all_children', icon: Users, path: '/worker/children' },
-      { name: 'nav.progress_tracking', icon: Activity, path: '/worker/progress-tracking' },
     ],
   },
   {
@@ -50,7 +52,6 @@ const workerNavGroups = [
     collapsible: true,
     items: [
       { name: 'nav.reports', icon: FileBarChart2, path: '/worker/reports' },
-      { name: 'nav.training', icon: GraduationCap, path: '/worker/training' },
     ],
   },
   {

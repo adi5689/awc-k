@@ -1,41 +1,33 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, Radar, RadarChart, PolarAngleAxis, PolarGrid, PolarRadiusAxis, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { CartesianGrid, Legend, Line, LineChart, Radar, RadarChart, PolarAngleAxis, PolarGrid, PolarRadiusAxis, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { ArrowLeft, BadgeCheck, Brain, HeartPulse, MessageSquareHeart, Ruler, Scale, Sparkles, CheckCircle2, XCircle, Star, CalendarDays, BookOpen, Activity, AlertTriangle, ClipboardCheck, ShieldPlus, Syringe, Utensils, Users } from 'lucide-react';
-import { mockBadgeAwards, childDevelopmentInsights, mockMealLogs, mockChildren, mockWeeklyParentReports, learningJourneyByTheme, teachingModulesByTheme, shapeStudioByTheme, storyVideosByTheme } from '../../data/mockData';
+import { mockBadgeAwards, mockMealLogs, mockChildren, mockWeeklyParentReports } from '../../data/mockData';
 import { consolidatedAttendanceHistory, developmentByChild, generateGrowthInsights, healthLogsSeed, immunizationByChild, monthlyIntakeByChild, nutritionTrackingByChild } from '../../data/childMonitoringData';
 import type { MonthlyIntake } from '../../data/childMonitoringData';
-import { ecceCurriculum } from '../../data/ecceCurriculum';
+import type { StandardObservationMetricId } from '../../data/ecceLms';
 import { cn, formatAge, getGrowthStatus, getProgressStatus } from '../../utils';
+import { buildChildLmsSummary } from '../../utils/ecceLmsObservations';
+import type { DailyLmsReport, MetricScoreSummary } from '../../utils/ecceLmsObservations';
 import { useTranslation } from '../../hooks/useTranslation';
-import type { WeeklyParentReport, ChildDevelopmentInsight, MealLog, BadgeAward } from '../../types';
+import type { WeeklyParentReport, MealLog, BadgeAward } from '../../types';
 import { SideDrawer } from '../../components/ui/side-drawer';
 
-const ECCE_PROGRESS_STORAGE_KEY = 'awc-ecce-learning-progress-v1';
+type MetricTone = 'emerald' | 'amber' | 'red' | 'sky' | 'violet';
 
-function getEcceProgress(childId?: string) {
-  if (!childId || typeof window === 'undefined') {
-    return { progress: 0, completedModules: 0, totalModules: ecceCurriculum.length };
-  }
+const parameterIconById: Record<StandardObservationMetricId, typeof Activity> = {
+  engagement: Users,
+  competencySkill: BadgeCheck,
+  communication: MessageSquareHeart,
+  independence: Sparkles,
+  peerInteraction: Users,
+};
 
-  try {
-    const saved = JSON.parse(window.localStorage.getItem(ECCE_PROGRESS_STORAGE_KEY) ?? '{}') as Record<string, Record<string, boolean>>;
-    const childProgress = saved[childId] ?? {};
-    const totalActivities = ecceCurriculum.reduce((sum, module) => sum + module.activities.length, 0);
-    const completedActivities = ecceCurriculum.reduce(
-      (sum, module) => sum + module.activities.filter((activity) => childProgress[activity.id]).length,
-      0,
-    );
-    const completedModules = ecceCurriculum.filter((module) => module.activities.length > 0 && module.activities.every((activity) => childProgress[activity.id])).length;
-
-    return {
-      progress: totalActivities > 0 ? Math.round((completedActivities / totalActivities) * 100) : 0,
-      completedModules,
-      totalModules: ecceCurriculum.length,
-    };
-  } catch {
-    return { progress: 0, completedModules: 0, totalModules: ecceCurriculum.length };
-  }
+function toneFromScore(score: number, count: number): MetricTone {
+  if (count === 0) return 'amber';
+  if (score >= 75) return 'emerald';
+  if (score >= 45) return 'amber';
+  return 'red';
 }
 
 export function ChildProfile() {
@@ -45,12 +37,11 @@ export function ChildProfile() {
   const { childId } = useParams<{ childId: string }>();
   const [metricsOpen, setMetricsOpen] = useState(false);
   const [metricsTab, setMetricsTab] = useState<'overview' | 'growth' | 'learning' | 'health'>('overview');
-  const child = mockChildren.find((entry: any) => entry.id === childId) ?? null;
+  const child = mockChildren.find((entry) => entry.id === childId) ?? null;
 
   const latestGrowth = child?.nutritionHistory.at(-1);
   const report = (mockWeeklyParentReports[childId as keyof typeof mockWeeklyParentReports] as WeeklyParentReport[])?.at(0);
   const badges = mockBadgeAwards.filter((entry: BadgeAward) => entry.childId === childId);
-  const insights = (childDevelopmentInsights[childId as keyof typeof childDevelopmentInsights] as ChildDevelopmentInsight[] || []);
   const meals = mockMealLogs.filter((entry: MealLog) => entry.childId === childId);
 
   // Synced Architecture Data Sources
@@ -58,24 +49,17 @@ export function ChildProfile() {
   const attendanceStats = currentMonthHistory?.stats.find(s => s.childId === childId);
   const childDates = currentMonthHistory?.dates ?? [];
 
-  const theme = 'monsoon';
-  const activities = learningJourneyByTheme[theme] ?? [];
-  const modules = teachingModulesByTheme[theme] ?? [];
-  const shapes = shapeStudioByTheme[theme] ?? [];
-  const videos = storyVideosByTheme[theme] ?? [];
-  
-  const rating = child ? (child.learningScore >= 80 ? 5 : child.learningScore >= 60 ? 4 : child.learningScore >= 40 ? 3 : 2) : 0;
-  const completionRatio = child ? (child.learningScore / 100) : 0;
-  
-  const learningMetrics = [
-    { label: 'Daily Activities', value: Math.round(completionRatio * activities.length), total: Math.max(activities.length, 1), color: 'bg-emerald-500' },
-    { label: 'Teaching Modules', value: Math.round(completionRatio * modules.length), total: Math.max(modules.length, 1), color: 'bg-violet-500' },
-    { label: '3D Shapes Studio', value: Math.round(Math.min(completionRatio * 1.5, 1) * shapes.length), total: Math.max(shapes.length, 1), color: 'bg-orange-500' },
-    { label: 'Story Videos', value: Math.round(Math.min(completionRatio * 1.2, 1) * videos.length), total: Math.max(videos.length, 1), color: 'bg-sky-500' },
-  ];
+  const lmsSummary = useMemo(() => child ? buildChildLmsSummary(child.id) : null, [child]);
 
   const radarData = useMemo(() => {
     if (!child) return [];
+    if (lmsSummary?.hasSavedRecords) {
+      return lmsSummary.domainScores.map((summary) => ({
+        domain: summary.label,
+        score: summary.count > 0 ? summary.score : 0,
+      }));
+    }
+
     return [
       { domain: t('domain.cognitive'), score: child.domainScores.cognitive },
       { domain: t('domain.language'), score: child.domainScores.language },
@@ -83,7 +67,7 @@ export function ChildProfile() {
       { domain: t('domain.social'), score: child.domainScores.socio_emotional },
       { domain: t('domain.creativity'), score: Math.min(100, child.learningScore + 5) },
     ];
-  }, [child, t]);
+  }, [attendanceStats?.percent, child, lmsSummary, t]);
 
   if (!child) {
     return (
@@ -95,11 +79,54 @@ export function ChildProfile() {
 
   const isSupervisorView = location.pathname.startsWith('/supervisor/');
   const locationState = location.state as { from?: string; fromLabel?: string } | null;
-  const backTarget = isSupervisorView ? locationState?.from ?? '/supervisor/awc-list' : '/worker/children';
-  const backLabel = isSupervisorView ? locationState?.fromLabel ?? 'Worker Profile' : t('common.back');
+  const backTarget = locationState?.from ?? (isSupervisorView ? '/supervisor/awc-list' : '/worker/children');
+  const backLabel = locationState?.fromLabel ?? (isSupervisorView ? 'Worker Profile' : t('common.back'));
+  const childLmsSummary = lmsSummary!;
+  const legacyDomainAverage = Math.round((child.domainScores.language + child.domainScores.numeracy + child.domainScores.cognitive + child.domainScores.socio_emotional) / 4);
+  const observedDomainScores = childLmsSummary.domainScores.filter((summary) => summary.count > 0);
+  const lmsLearningScore = childLmsSummary.hasSavedRecords ? childLmsSummary.overallScore : Math.round(child.learningScore);
+  const lmsDomainAverage = observedDomainScores.length
+    ? Math.round(observedDomainScores.reduce((sum, summary) => sum + summary.score, 0) / observedDomainScores.length)
+    : legacyDomainAverage;
+  const lmsTone = lmsLearningScore >= 70 ? 'emerald' as const : lmsLearningScore >= 45 ? 'amber' as const : 'red' as const;
+  const lmsRating = lmsLearningScore >= 80 ? 5 : lmsLearningScore >= 60 ? 4 : lmsLearningScore >= 40 ? 3 : 2;
+  const lmsScoreDetail = childLmsSummary.hasSavedRecords
+    ? `${childLmsSummary.recordCount} saved observation record(s)`
+    : 'No saved LMS observations yet; showing baseline score';
+  const latestDailyReport = childLmsSummary.latestDailyReport;
+  const learningMetrics = [
+    {
+      label: 'Observation Records',
+      value: childLmsSummary.recordCount,
+      total: Math.max(childLmsSummary.recordCount, 1),
+      progress: childLmsSummary.hasSavedRecords ? 100 : 0,
+      color: 'bg-sky-500',
+    },
+    {
+      label: 'Activities Observed',
+      value: childLmsSummary.observedActivities,
+      total: Math.max(childLmsSummary.totalActivities, 1),
+      progress: childLmsSummary.coveragePercent,
+      color: 'bg-emerald-500',
+    },
+    {
+      label: 'Modules Touched',
+      value: childLmsSummary.observedModules,
+      total: Math.max(childLmsSummary.totalModules, 1),
+      progress: Math.round((childLmsSummary.observedModules / Math.max(childLmsSummary.totalModules, 1)) * 100),
+      color: 'bg-violet-500',
+    },
+    {
+      label: 'Developing+',
+      value: childLmsSummary.developingPlusCount,
+      total: Math.max(childLmsSummary.recordCount, 1),
+      progress: Math.round((childLmsSummary.developingPlusCount / Math.max(childLmsSummary.recordCount, 1)) * 100),
+      color: 'bg-amber-500',
+    },
+  ];
 
   const rawGrowthStatus = getGrowthStatus(child.learningScore);
-  const rawProgressStatus = getProgressStatus(child.learningScore);
+  const rawProgressStatus = getProgressStatus(lmsLearningScore);
   const periodicHistory = monthlyIntakeByChild[child.id] ?? [];
   const latestPeriodic = periodicHistory.at(-1);
   const periodicInsights = generateGrowthInsights(periodicHistory);
@@ -120,11 +147,6 @@ export function ChildProfile() {
   const developmentPercent = developmentItems.length > 0 ? Math.round((developmentDone / developmentItems.length) * 100) : 0;
   const healthLog = healthLogsSeed.find(log => log.childId === child.id);
   const healthIssueCount = healthLog ? [healthLog.fever, healthLog.diarrhea, healthLog.cough, healthLog.hospitalVisit].filter(Boolean).length : 0;
-  const quizAverage = child.quizResults.length > 0
-    ? Math.round(child.quizResults.reduce((sum, quiz) => sum + quiz.score, 0) / child.quizResults.length)
-    : 0;
-  const domainAverage = Math.round((child.domainScores.language + child.domainScores.numeracy + child.domainScores.cognitive + child.domainScores.socio_emotional) / 4);
-  const ecceProgress = getEcceProgress(child.id);
   const riskFlags = child.riskFlags.flags.length;
   const individualMetricGroups = [
     {
@@ -157,11 +179,11 @@ export function ChildProfile() {
     {
       title: 'Learning & Development',
       metrics: [
-        { label: 'Learning Score', value: `${Math.round(child.learningScore)}%`, detail: t(child.persona), icon: BookOpen, tone: child.learningScore >= 70 ? 'emerald' as const : child.learningScore >= 45 ? 'amber' as const : 'red' as const },
-        { label: 'ECCE Progress', value: `${ecceProgress.progress}%`, detail: `${ecceProgress.completedModules}/${ecceProgress.totalModules} modules complete`, icon: Sparkles, tone: ecceProgress.progress >= 70 ? 'emerald' as const : ecceProgress.progress >= 35 ? 'amber' as const : 'red' as const },
+        { label: 'LMS Score', value: `${lmsLearningScore}%`, detail: lmsScoreDetail, icon: BookOpen, tone: lmsTone },
+        { label: 'LMS Coverage', value: `${childLmsSummary.coveragePercent}%`, detail: `${childLmsSummary.observedActivities}/${childLmsSummary.totalActivities} activities observed`, icon: Sparkles, tone: childLmsSummary.coveragePercent >= 70 ? 'emerald' as const : childLmsSummary.coveragePercent >= 35 ? 'amber' as const : 'red' as const },
         { label: 'Development Checklist', value: `${developmentPercent}%`, detail: `${developmentDone}/${developmentItems.length} milestones observed`, icon: Brain, tone: developmentPercent >= 75 ? 'emerald' as const : developmentPercent >= 45 ? 'amber' as const : 'red' as const },
-        { label: 'Domain Average', value: `${domainAverage}%`, detail: 'Language, numeracy, cognitive, social', icon: BadgeCheck, tone: domainAverage >= 70 ? 'emerald' as const : domainAverage >= 45 ? 'amber' as const : 'red' as const },
-        { label: 'Quiz Average', value: `${quizAverage}%`, detail: `${child.quizResults.length} quiz record(s)`, icon: Star, tone: quizAverage >= 70 ? 'emerald' as const : quizAverage >= 45 ? 'amber' as const : 'red' as const },
+        { label: 'Domain Average', value: `${lmsDomainAverage}%`, detail: childLmsSummary.hasSavedRecords ? `${observedDomainScores.length} ECCE LMS domain(s)` : 'Baseline profile domains', icon: BadgeCheck, tone: lmsDomainAverage >= 70 ? 'emerald' as const : lmsDomainAverage >= 45 ? 'amber' as const : 'red' as const },
+        { label: 'Follow-up Needed', value: childLmsSummary.followUpCount, detail: 'Emerging, not observed, or parent-connect records', icon: AlertTriangle, tone: childLmsSummary.followUpCount === 0 ? 'emerald' as const : childLmsSummary.followUpCount <= 2 ? 'amber' as const : 'red' as const },
         { label: 'Suggested Activities', value: child.suggestedActivities.length, detail: 'Personalized next activities', icon: Sparkles, tone: 'violet' as const },
       ],
     },
@@ -180,7 +202,7 @@ export function ChildProfile() {
       ? [{ label: 'Weight', value: latestPeriodic ? `${latestPeriodic.weight} ${t('units.kg')}` : '-', detail: `${growthWeightDelta >= 0 ? '+' : ''}${growthWeightDelta} ${t('units.kg')} total change`, icon: Scale, tone: growthWeightDelta >= 0 ? 'emerald' as const : 'red' as const }]
       : []),
     { label: 'Attendance', value: `${latestPeriodic?.attendanceRate ?? attendancePercent}%`, detail: 'Latest monthly record', icon: ClipboardCheck, tone: (latestPeriodic?.attendanceRate ?? attendancePercent) >= 80 ? 'emerald' as const : 'amber' as const },
-    { label: 'Learning', value: `${latestPeriodic?.learningScore ?? Math.round(child.learningScore)}%`, detail: 'Tracked with monthly intake', icon: BookOpen, tone: (latestPeriodic?.learningScore ?? child.learningScore) >= 70 ? 'emerald' as const : 'amber' as const },
+    { label: 'Learning', value: `${lmsLearningScore}%`, detail: childLmsSummary.hasSavedRecords ? 'From ECCE LMS monitor' : 'Baseline, no LMS observations', icon: BookOpen, tone: lmsTone },
   ];
   const studentDashboardSections = [
     {
@@ -196,13 +218,13 @@ export function ChildProfile() {
     },
     {
       title: 'Learning',
-      subtitle: 'Learning score, ECCE progress, and activity completion',
+      subtitle: 'ECCE LMS score, coverage, and observation status',
       icon: BookOpen,
-      tone: child.learningScore >= 70 ? 'emerald' as const : child.learningScore >= 45 ? 'amber' as const : 'red' as const,
+      tone: lmsTone,
       targetTab: 'learning' as const,
       metrics: [
-        { label: 'Learning Score', value: `${Math.round(child.learningScore)}%`, detail: t(child.persona), icon: BookOpen, tone: child.learningScore >= 70 ? 'emerald' as const : child.learningScore >= 45 ? 'amber' as const : 'red' as const },
-        { label: 'ECCE Progress', value: `${ecceProgress.progress}%`, detail: `${ecceProgress.completedModules}/${ecceProgress.totalModules} modules complete`, icon: Sparkles, tone: ecceProgress.progress >= 70 ? 'emerald' as const : ecceProgress.progress >= 35 ? 'amber' as const : 'red' as const },
+        { label: 'LMS Score', value: `${lmsLearningScore}%`, detail: lmsScoreDetail, icon: BookOpen, tone: lmsTone },
+        { label: 'LMS Coverage', value: `${childLmsSummary.coveragePercent}%`, detail: `${childLmsSummary.observedActivities}/${childLmsSummary.totalActivities} activities observed`, icon: Sparkles, tone: childLmsSummary.coveragePercent >= 70 ? 'emerald' as const : childLmsSummary.coveragePercent >= 35 ? 'amber' as const : 'red' as const },
       ],
     },
     {
@@ -225,7 +247,7 @@ export function ChildProfile() {
   const trackerSections = [
     { label: 'Overview', tab: 'overview' as const, icon: Activity, detail: 'Latest periodic summary' },
     { label: 'Growth History', tab: 'growth' as const, icon: Scale, detail: 'Weight, height, and MUAC records' },
-    { label: 'Learning Trend', tab: 'learning' as const, icon: BookOpen, detail: 'Learning and attendance movement' },
+    { label: 'ECCE LMS', tab: 'learning' as const, icon: BookOpen, detail: 'Observation records, domains, and module progress' },
     { label: 'Health & Care', tab: 'health' as const, icon: ShieldPlus, detail: 'Nutrition, symptoms, and follow-up' },
   ];
 
@@ -237,10 +259,19 @@ export function ChildProfile() {
           {backLabel}
         </button>
         {!isSupervisorView && (
-          <button onClick={() => navigate('/worker/parents')} className="inline-flex items-center gap-2 rounded-2xl bg-sky-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 hover:bg-sky-600 transition-colors">
-            <MessageSquareHeart size={16} />
-            {t('parents.btn_share')}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => navigate('/worker/student-observations', { state: { selectedChildId: child.id, from: location.pathname } })}
+              className="inline-flex items-center gap-2 rounded-2xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-colors"
+            >
+              <ClipboardCheck size={16} />
+              Open ECCE Monitor
+            </button>
+            <button onClick={() => navigate('/worker/parents')} className="inline-flex items-center gap-2 rounded-2xl bg-sky-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 hover:bg-sky-600 transition-colors">
+              <MessageSquareHeart size={16} />
+              {t('parents.btn_share')}
+            </button>
+          </div>
         )}
       </div>
 
@@ -257,7 +288,7 @@ export function ChildProfile() {
                 {child.name.charAt(0)}
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">{t('dashboard.development.title')}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Student Profile</p>
                 <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground">{child.name}</h1>
                 <p className="mt-2 text-sm text-muted-foreground">
                   {formatAge(child.ageMonths, t)} · {child.gender === 'M' ? t('status.boy') : t('status.girl')} · {child.parentName}
@@ -324,8 +355,16 @@ export function ChildProfile() {
         </div>
 
         <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          A compact child-wise view aligned with the detailed Attendance, Learning, and {isSupervisorView ? 'Nutrition & Health' : 'Health & Care'} sections below.
+          Daily ECCE Monitor observations, progress report, and follow-up signals for this child.
         </p>
+
+        <DailyEcceProgressReport
+          report={latestDailyReport}
+          onOpenTracker={() => {
+            setMetricsTab('learning');
+            setMetricsOpen(true);
+          }}
+        />
 
         <div className="mt-6 grid gap-4 xl:grid-cols-3">
           {studentDashboardSections.map((section) => (
@@ -396,8 +435,13 @@ export function ChildProfile() {
         )}
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <div className="space-y-6">
+      <AssessmentRadarCard
+        title={t('dashboard.radar.title')}
+        description={t('dashboard.radar.desc')}
+        radarData={radarData}
+      />
+
+      <section className="space-y-6">
           <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
             <div className="flex items-center gap-2">
               <CalendarDays size={18} className="text-sky-500" />
@@ -430,15 +474,15 @@ export function ChildProfile() {
               <div>
                 <div className="flex items-center gap-2">
                   <BookOpen size={18} className="text-primary" />
-                  <h2 className="text-xl font-semibold text-foreground">Learning Progress</h2>
+                  <h2 className="text-xl font-semibold text-foreground">ECCE Monitor Progress</h2>
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Overall score: <span className="font-semibold text-foreground">{Math.round(child.learningScore)}%</span> engagement in '{theme}' theme.
+                  ECCE Monitor score: <span className="font-semibold text-foreground">{lmsLearningScore}%</span>. {childLmsSummary.hasSavedRecords ? `${childLmsSummary.recordCount} saved observation record(s) included.` : 'No saved ECCE observations yet; baseline score shown.'}
                 </p>
               </div>
               <div className="flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 dark:border-amber-900/30 dark:bg-amber-950/20 self-start sm:self-auto">
                 {[1, 2, 3, 4, 5].map(star => (
-                  <Star key={star} size={14} className={cn('fill-current', star <= rating ? 'text-amber-500' : 'text-slate-300 dark:text-slate-700')} />
+                  <Star key={star} size={14} className={cn('fill-current', star <= lmsRating ? 'text-amber-500' : 'text-slate-300 dark:text-slate-700')} />
                 ))}
               </div>
             </div>
@@ -453,68 +497,13 @@ export function ChildProfile() {
                   <div className="mt-3 h-2 rounded-full bg-muted">
                     <div
                       className={cn('h-2 rounded-full', item.color)}
-                      style={{ width: `${Math.round((item.value / item.total) * 100)}%` }}
+                      style={{ width: `${item.progress}%` }}
                     />
                   </div>
                 </div>
               ))}
             </div>
           </div>
-
-        </div>
-
-        <div className="space-y-6">
-          <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-foreground">{t('dashboard.radar.title')}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{t('dashboard.radar.desc')}</p>
-            <div className="mt-4 h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart data={radarData}>
-                  <PolarGrid stroke="hsl(var(--border))" />
-                  <PolarAngleAxis dataKey="domain" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
-                  <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
-                  <Radar dataKey="score" stroke="#38bdf8" fill="#38bdf8" fillOpacity={0.28} />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="mt-4 grid gap-3">
-              {radarData.map((domain: { domain: string; score: number }) => (
-                <div key={domain.domain} className="rounded-2xl border border-border bg-background/70 p-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-foreground">{domain.domain}</span>
-                    <span className="font-semibold text-foreground">{domain.score}%</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
-            <div className="flex items-center gap-2">
-              <Brain size={18} className="text-sky-500" />
-              <h2 className="text-xl font-semibold text-foreground">{t('dashboard.development.title')}</h2>
-            </div>
-            <div className="mt-4 grid gap-4">
-              {insights.map((insight) => (
-                <div key={insight.id} className="rounded-3xl border border-border bg-background/70 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-semibold text-foreground">{t(insight.title)}</p>
-                    <span className={cn(
-                      'rounded-full px-3 py-1 text-xs font-semibold',
-                      insight.severity === 'good' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
-                      insight.severity === 'average' && 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
-                      insight.severity === 'critical' && 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
-                    )}>
-                      {t(`status.${insight.severity || 'good'}`)}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-sm text-muted-foreground">{t(insight.detail)}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-        </div>
       </section>
 
       <SideDrawer
@@ -560,7 +549,7 @@ export function ChildProfile() {
             {[
               { value: 'overview' as const, label: 'Overview', icon: Activity },
               { value: 'growth' as const, label: 'Growth History', icon: Scale },
-              { value: 'learning' as const, label: 'Learning Trend', icon: BookOpen },
+              { value: 'learning' as const, label: 'ECCE Report', icon: BookOpen },
               { value: 'health' as const, label: 'Health & Care', icon: ShieldPlus },
             ].filter((tab) => isSupervisorView || tab.value !== 'growth').map((tab) => (
               <button
@@ -644,29 +633,93 @@ export function ChildProfile() {
 
           {metricsTab === 'learning' && (
             <div className="space-y-5">
-              <div className="rounded-2xl border border-border bg-card p-4">
-                <h4 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
-                  <BookOpen size={14} className="text-primary" />
-                  Learning and attendance trend
-                </h4>
-                <div className="h-[220px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={periodicHistory} barCategoryGap="18%">
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                      <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
-                      <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} unit="%" />
-                      <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '0.75rem', border: '1px solid hsl(var(--border))', fontSize: '12px' }} />
-                      <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 600 }} />
-                      <Bar dataKey="learningScore" name="Learning" fill="#8b5cf6" radius={[6, 6, 0, 0]} />
-                      <Bar dataKey="attendanceRate" name="Attendance" fill="#06b6d4" radius={[6, 6, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+              <DailyEcceReportList reports={childLmsSummary.dailyReports} />
+
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <ChildMetricCard label="LMS Score" value={`${lmsLearningScore}%`} detail={lmsScoreDetail} icon={BookOpen} tone={lmsTone} />
+                <ChildMetricCard label="LMS Coverage" value={`${childLmsSummary.coveragePercent}%`} detail={`${childLmsSummary.observedActivities}/${childLmsSummary.totalActivities} activities observed`} icon={Sparkles} tone={childLmsSummary.coveragePercent >= 70 ? 'emerald' : childLmsSummary.coveragePercent >= 35 ? 'amber' : 'red'} />
+                <ChildMetricCard label="Follow-up Needed" value={childLmsSummary.followUpCount} detail="Emerging, not observed, or parent-connect records" icon={AlertTriangle} tone={childLmsSummary.followUpCount === 0 ? 'emerald' : childLmsSummary.followUpCount <= 2 ? 'amber' : 'red'} />
+                <ChildMetricCard label="Latest Observation" value={childLmsSummary.latestRecord?.date ?? '-'} detail={childLmsSummary.latestRecord?.ageBand ?? 'No saved LMS record yet'} icon={ClipboardCheck} tone={childLmsSummary.latestRecord ? 'sky' : 'amber'} />
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <ChildMetricCard label="ECCE Progress" value={`${ecceProgress.progress}%`} detail={`${ecceProgress.completedModules}/${ecceProgress.totalModules} modules complete`} icon={Sparkles} tone={ecceProgress.progress >= 70 ? 'emerald' : ecceProgress.progress >= 35 ? 'amber' : 'red'} />
-                <ChildMetricCard label="Development Checklist" value={`${developmentPercent}%`} detail={`${developmentDone}/${developmentItems.length} milestones observed`} icon={Brain} tone={developmentPercent >= 75 ? 'emerald' : developmentPercent >= 45 ? 'amber' : 'red'} />
+              <div className="rounded-2xl border border-border bg-card p-4">
+                <h4 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
+                  <BadgeCheck size={14} className="text-primary" />
+                  ECCE LMS domain performance
+                </h4>
+                {childLmsSummary.hasSavedRecords ? (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {childLmsSummary.domainScores.map((summary) => (
+                      <div key={summary.label} className="rounded-xl border border-border bg-background/60 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-bold text-foreground">{summary.label}</p>
+                            <p className="mt-1 text-xs font-semibold text-muted-foreground">{summary.count} observation record(s)</p>
+                          </div>
+                          <span className={cn(
+                            'rounded-full px-2.5 py-1 text-xs font-black',
+                            summary.count === 0 && 'bg-muted text-muted-foreground',
+                            summary.count > 0 && summary.score >= 70 && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+                            summary.count > 0 && summary.score >= 45 && summary.score < 70 && 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+                            summary.count > 0 && summary.score < 45 && 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+                          )}>
+                            {summary.count ? `${summary.score}%` : 'NA'}
+                          </span>
+                        </div>
+                        <div className="mt-3 h-2 rounded-full bg-muted">
+                          <div
+                            className={cn(
+                              'h-2 rounded-full',
+                              summary.score >= 70 ? 'bg-emerald-500' : summary.score >= 45 ? 'bg-amber-500' : 'bg-red-500'
+                            )}
+                            style={{ width: `${summary.count ? summary.score : 0}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm font-semibold text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
+                    <p className="mb-2">
+                      No saved ECCE LMS observations yet. Use the ECCE LMS Monitor and save offline to populate this child dashboard.
+                    </p>
+                    <button
+                      onClick={() => navigate('/worker/student-observations', { state: { selectedChildId: child.id, from: location.pathname } })}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-amber-700 transition-colors"
+                    >
+                      <ClipboardCheck size={14} />
+                      Open ECCE Monitor
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-border bg-card p-4">
+                <h4 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
+                  <Sparkles size={14} className="text-primary" />
+                  Module observations
+                </h4>
+                {childLmsSummary.moduleScores.some((summary) => summary.count > 0) ? (
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {childLmsSummary.moduleScores
+                      .filter((summary) => summary.count > 0)
+                      .sort((a, b) => b.score - a.score)
+                      .slice(0, 6)
+                      .map((summary) => (
+                        <div key={`${summary.domain}-${summary.label}`} className="rounded-xl border border-border bg-background/60 px-3 py-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-bold text-foreground">{summary.label}</p>
+                              <p className="text-xs font-semibold text-muted-foreground">{summary.domain} / {summary.competency}</p>
+                            </div>
+                            <span className="shrink-0 text-sm font-black text-foreground">{summary.score}%</span>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <p className="text-sm font-semibold text-muted-foreground">No module observations saved yet.</p>
+                )}
               </div>
             </div>
           )}
@@ -722,6 +775,275 @@ export function ChildProfile() {
           )}
         </div>
       </SideDrawer>
+    </div>
+  );
+}
+
+function AssessmentRadarCard({
+  title,
+  description,
+  radarData,
+}: {
+  title: string;
+  description: string;
+  radarData: Array<{ domain: string; score: number }>;
+}) {
+  return (
+    <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+      <h2 className="text-xl font-semibold text-foreground">{title}</h2>
+      <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+      <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(260px,0.95fr)_minmax(260px,1.05fr)] lg:items-center">
+        <div className="h-[280px] min-w-0">
+          <ResponsiveContainer width="100%" height="100%">
+            <RadarChart data={radarData}>
+              <PolarGrid stroke="hsl(var(--border))" />
+              <PolarAngleAxis dataKey="domain" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+              <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
+              <Radar dataKey="score" stroke="#38bdf8" fill="#38bdf8" fillOpacity={0.28} />
+            </RadarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">Assessment details</p>
+          <div className="mt-3 grid gap-3">
+            {radarData.map((domain) => (
+              <div key={domain.domain} className="rounded-2xl border border-border bg-background/70 p-3">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="min-w-0 truncate font-medium text-foreground">{domain.domain}</span>
+                  <span className="shrink-0 font-semibold text-foreground">{domain.score}%</span>
+                </div>
+                <div className="mt-2 h-2 rounded-full bg-muted">
+                  <div
+                    className={cn(
+                      'h-2 rounded-full',
+                      domain.score >= 75 ? 'bg-emerald-500' : domain.score >= 45 ? 'bg-amber-500' : 'bg-red-500',
+                    )}
+                    style={{ width: `${domain.score}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+            <div className="rounded-2xl border border-dashed border-border px-3 py-2 text-xs font-semibold leading-5 text-muted-foreground">
+              Scores reflect the latest saved ECCE Monitor observations where available.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function DailyEcceProgressReport({ report, onOpenTracker }: { report: DailyLmsReport | null; onOpenTracker: () => void }) {
+  return (
+    <section className="mt-5 rounded-[1.5rem] border border-border bg-background/60 p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">ECCE Monitor Daily Report</p>
+          <h3 className="mt-1 text-xl font-bold text-foreground">
+            {report ? `Progress report for ${report.date}` : 'No ECCE monitor report yet'}
+          </h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {report
+              ? `${report.observedActivities} activity observation(s), ${report.domains.length} domain(s), ${report.followUpCount} follow-up signal(s).`
+              : 'Save observations from the ECCE Monitor to generate the student daily progress report.'}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onOpenTracker}
+          className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 text-xs font-bold uppercase tracking-wider text-foreground transition-colors hover:bg-accent"
+        >
+          <ClipboardCheck size={14} />
+          Full Report
+        </button>
+      </div>
+
+      {report ? (
+        <div className="mt-4 space-y-4">
+          <DailyReportSnapshot report={report} />
+          <DailyReportParameterStrip metrics={report.metricScores} />
+          <DailyActivityReportRows report={report} compact />
+        </div>
+      ) : (
+        <div className="mt-4 rounded-xl border border-dashed border-border bg-card/60 px-4 py-6 text-sm font-semibold text-muted-foreground">
+          ECCE Monitor observations will appear here as daily progress reports.
+        </div>
+      )}
+    </section>
+  );
+}
+
+function DailyEcceReportList({ reports }: { reports: DailyLmsReport[] }) {
+  if (!reports.length) {
+    return (
+      <div className="rounded-2xl border border-dashed border-border bg-card px-4 py-10 text-center">
+        <BookOpen size={26} className="mx-auto text-muted-foreground/60" />
+        <p className="mt-3 text-sm font-bold text-foreground">No ECCE Monitor reports saved yet</p>
+        <p className="mt-1 text-sm text-muted-foreground">Daily activity observations will populate this progress report.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {reports.map((report) => (
+        <div key={report.date} className="rounded-2xl border border-border bg-card p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">Daily Progress Report</p>
+              <h4 className="mt-1 text-lg font-bold text-foreground">{report.date}</h4>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {report.domains.join(', ') || 'No domain'} / {report.modules.length} module(s)
+              </p>
+            </div>
+            <span className={cn(
+              'w-max rounded-full px-3 py-1 text-xs font-black',
+              report.score >= 75 && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+              report.score >= 45 && report.score < 75 && 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+              report.score < 45 && 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+            )}>
+              {report.score}% daily score
+            </span>
+          </div>
+
+          <div className="mt-4 space-y-4">
+            <DailyReportSnapshot report={report} />
+            <DailyReportParameterStrip metrics={report.metricScores} />
+            <DailyActivityReportRows report={report} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DailyReportSnapshot({ report }: { report: DailyLmsReport }) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <ReportStat label="Daily Score" value={`${report.score}%`} tone={toneFromScore(report.score, report.recordCount)} />
+      <ReportStat label="Activities" value={report.observedActivities} tone="sky" />
+      <ReportStat label="Developing+" value={report.levelCounts.Developing + report.levelCounts.Achieved} tone="emerald" />
+      <ReportStat label="Follow-up" value={report.followUpCount} tone={report.followUpCount ? 'amber' : 'emerald'} />
+    </div>
+  );
+}
+
+function ReportStat({ label, value, tone }: { label: string; value: string | number; tone: MetricTone }) {
+  return (
+    <div className={cn(
+      'rounded-xl border px-3 py-2.5',
+      tone === 'emerald' && 'border-emerald-200 bg-emerald-50/70 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-300',
+      tone === 'amber' && 'border-amber-200 bg-amber-50/70 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300',
+      tone === 'red' && 'border-red-200 bg-red-50/70 text-red-800 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300',
+      tone === 'sky' && 'border-sky-200 bg-sky-50/70 text-sky-800 dark:border-sky-900/50 dark:bg-sky-950/20 dark:text-sky-300',
+      tone === 'violet' && 'border-violet-200 bg-violet-50/70 text-violet-800 dark:border-violet-900/50 dark:bg-violet-950/20 dark:text-violet-300',
+    )}>
+      <p className="text-[10px] font-black uppercase tracking-[0.18em] opacity-70">{label}</p>
+      <p className="mt-1 text-lg font-black">{value}</p>
+    </div>
+  );
+}
+
+function DailyReportParameterStrip({ metrics }: { metrics: MetricScoreSummary[] }) {
+  return (
+    <div>
+      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">ECCE parameters</p>
+      <div className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+        {metrics.map((metric) => {
+          const tone = toneFromScore(metric.score, metric.count);
+          const Icon = parameterIconById[metric.id];
+
+          return (
+            <div key={metric.id} className="rounded-xl border border-border bg-background/60 p-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="truncate text-xs font-black text-foreground">{metric.label}</p>
+                <Icon size={13} className="shrink-0 text-muted-foreground" />
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <span className={cn(
+                  'text-sm font-black',
+                  tone === 'emerald' && 'text-emerald-700 dark:text-emerald-300',
+                  tone === 'amber' && 'text-amber-700 dark:text-amber-300',
+                  tone === 'red' && 'text-red-700 dark:text-red-300',
+                )}>
+                  {metric.count ? `${metric.score}%` : 'NA'}
+                </span>
+                <span className="text-[11px] font-bold text-muted-foreground">
+                  {metric.count ? `${metric.averageMark.toFixed(1)}/3` : '0/3'}
+                </span>
+              </div>
+              <div className="mt-2 h-1.5 rounded-full bg-muted">
+                <div
+                  className={cn(
+                    'h-1.5 rounded-full',
+                    tone === 'emerald' && 'bg-emerald-500',
+                    tone === 'amber' && 'bg-amber-500',
+                    tone === 'red' && 'bg-red-500',
+                  )}
+                  style={{ width: `${metric.count ? metric.score : 0}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function DailyActivityReportRows({ report, compact = false }: { report: DailyLmsReport; compact?: boolean }) {
+  const activities = compact ? report.activities.slice(0, 3) : report.activities;
+
+  return (
+    <div>
+      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Activity performance</p>
+      <div className="mt-2 space-y-2">
+        {activities.map((activity) => {
+          const tone = toneFromScore(activity.score, 1);
+
+          return (
+            <div key={`${report.date}-${activity.activityId}`} className="rounded-xl border border-border bg-background/60 p-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-foreground">{activity.activityTitle}</p>
+                  <p className="mt-1 text-xs font-semibold text-muted-foreground">
+                    {activity.domain} / {activity.module}
+                  </p>
+                </div>
+                <span className={cn(
+                  'w-max shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black',
+                  tone === 'emerald' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+                  tone === 'amber' && 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+                  tone === 'red' && 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+                )}>
+                  {activity.score}% / {activity.level}
+                </span>
+              </div>
+
+              {(activity.quickNote || activity.remediation || activity.parentConnect) && (
+                <div className="mt-2 grid gap-2 md:grid-cols-2">
+                  {activity.quickNote && (
+                    <p className="rounded-lg bg-card px-2.5 py-2 text-xs font-semibold text-muted-foreground">
+                      Note: <span className="text-foreground">{activity.quickNote}</span>
+                    </p>
+                  )}
+                  {(activity.parentConnect || activity.level === 'Emerging' || activity.level === 'Not Yet Observed') && (
+                    <p className="rounded-lg bg-amber-50 px-2.5 py-2 text-xs font-semibold text-amber-800 dark:bg-amber-950/20 dark:text-amber-300">
+                      Follow-up: {activity.remediation}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {compact && report.activities.length > activities.length && (
+          <p className="rounded-xl border border-dashed border-border px-3 py-2 text-xs font-bold text-muted-foreground">
+            +{report.activities.length - activities.length} more activity record(s) in full report
+          </p>
+        )}
+      </div>
     </div>
   );
 }

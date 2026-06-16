@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
   BookOpenCheck,
@@ -8,20 +9,22 @@ import {
   ChevronRight,
   ClipboardCheck,
   Download,
+  ExternalLink,
   FileSpreadsheet,
   Layers3,
   ListChecks,
   Mic,
   NotebookText,
+  PenTool,
   PlayCircle,
   Search,
   Target,
 } from 'lucide-react';
+import { mockChildren } from '../../data/mockData';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import {
   ageBands,
-  ecceActivityRepository,
   evidenceTypes,
   lmsDomains,
   rubricLevels,
@@ -40,72 +43,41 @@ import type {
   StandardObservationMetricId,
 } from '../../data/ecceLms';
 import {
-  dailyAttendanceSeed,
   managedChildren,
-  monthlyIntakeByChild,
 } from '../../data/childMonitoringData';
 import type { ManagedChild } from '../../data/childMonitoringData';
 import { downloadCsv, downloadExcelHtml } from '../../utils/exportFiles';
 import { cn } from '../../utils';
+import {
+  STORAGE_KEY,
+  autoLevel,
+  buildChildPerformance,
+  buildDefaultRecord,
+  getReadiness,
+  getRecordKey,
+  levelFromScore,
+  loadRecords,
+  mergeRecord,
+  metricLabel,
+  metricMarksForAll,
+  nextActivity,
+  observationIndicators,
+  ratingFromMark,
+  remediationFor,
+  savedRecordFromEntry,
+  scoreObservation,
+  todayIso,
+} from '../../utils/ecceLmsObservations';
+import type {
+  ChildPerformance,
+  ScoreSummary,
+  StudentDailyView,
+  StudentObservationRecord,
+} from '../../utils/ecceLmsObservations';
 
 type WorkflowStep = 'domain' | 'module' | 'activity' | 'details';
-type AttendanceMark = 'Present' | 'Absent';
-type ObservationRating = 'Low' | 'Medium' | 'High';
-
-type StudentObservationRecord = {
-  childId: string;
-  date: string;
-  ageBand: AgeBand;
-  activityId: string;
-  attendance: AttendanceMark;
-  participation: ObservationRating;
-  confidence: ObservationRating;
-  communication: ObservationRating;
-  metricMarks: Record<StandardObservationMetricId, StandardObservationMark>;
-  indicatorRatings: Record<string, boolean>;
-  evidence: EvidenceType;
-  evidenceNote: string;
-  quickNote: string;
-  remediation: string;
-  parentConnect: boolean;
-};
-
-type StudentDailyView = {
-  child: ManagedChild;
-  record: StudentObservationRecord;
-  readiness: number;
-  level: RubricLevel;
-  score: number;
-};
-
-type ScoreSummary = {
-  label: string;
-  score: number;
-  count: number;
-};
-
-type ChildPerformance = {
-  child: ManagedChild;
-  selectedModule: ScoreSummary;
-  selectedDomain: ScoreSummary;
-  weakestDomain: ScoreSummary;
-  domainScores: ScoreSummary[];
-  moduleScores: ScoreSummary[];
-};
-
-const STORAGE_KEY = 'awc-ecce-lms-observations-v3';
-const LEGACY_STORAGE_KEY = 'awc-ecce-lms-observations-v2';
 const SESSION_DURATION_MINUTES = 20;
 const DUMMY_ACTIVITY_VIDEO = '/videos/ecce/dummy-activity.webm';
-
-const ratingOptions: ObservationRating[] = ['Low', 'Medium', 'High'];
-
-const rubricMark: Record<RubricLevel, StandardObservationMark> = {
-  'Not Yet Observed': 0,
-  Emerging: 1,
-  Developing: 2,
-  Achieved: 3,
-};
 
 const evidenceIcon: Record<EvidenceType, typeof NotebookText> = {
   'Observation Note': NotebookText,
@@ -113,278 +85,6 @@ const evidenceIcon: Record<EvidenceType, typeof NotebookText> = {
   Video: Camera,
   'Voice Note': Mic,
 };
-
-const activityContextById = new Map<string, { domain: EcceLmsDomain; module: EcceLmsModule; activity: EcceLmsActivity }>(
-  lmsDomains.flatMap((domain) =>
-    domain.modules.flatMap((module) =>
-      module.activities.map((activity) => [activity.id, { domain, module, activity }] as const)
-    )
-  )
-);
-
-function todayIso() {
-  const now = new Date();
-  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 10);
-}
-
-function getRecordKey(date: string, ageBand: AgeBand, activityId: string, childId: string) {
-  return `${date}::${ageBand}::${activityId}::${childId}`;
-}
-
-function loadRecords() {
-  if (typeof window === 'undefined') return {};
-  try {
-    const current = window.localStorage.getItem(STORAGE_KEY);
-    const legacy = window.localStorage.getItem(LEGACY_STORAGE_KEY);
-    return JSON.parse(current ?? legacy ?? '{}') as Record<string, Partial<StudentObservationRecord>>;
-  } catch {
-    return {};
-  }
-}
-
-function getReadiness(child: ManagedChild) {
-  const latest = monthlyIntakeByChild[child.id]?.at(-1);
-  if (!latest) return 60;
-  return Math.round(latest.learningScore * 0.7 + latest.attendanceRate * 0.3);
-}
-
-function getAttendance(child: ManagedChild): AttendanceMark {
-  const attendance = dailyAttendanceSeed.find((entry) => entry.id === child.id);
-  return attendance?.present === false ? 'Absent' : 'Present';
-}
-
-function ratingFromReadiness(readiness: number): ObservationRating {
-  if (readiness >= 78) return 'High';
-  if (readiness >= 52) return 'Medium';
-  return 'Low';
-}
-
-function observationIndicators(activity: EcceLmsActivity) {
-  return activity.observationChecklist.slice(0, 5);
-}
-
-function indicatorDefaults(level: RubricLevel, activity: EcceLmsActivity) {
-  const indicators = observationIndicators(activity);
-  const countByLevel: Record<RubricLevel, number> = {
-    'Not Yet Observed': 0,
-    Emerging: 1,
-    Developing: Math.min(3, indicators.length),
-    Achieved: indicators.length,
-  };
-
-  return indicators.reduce((ratings, indicator, index) => {
-    ratings[indicator] = index < countByLevel[level];
-    return ratings;
-  }, {} as Record<string, boolean>);
-}
-
-function markFromRating(rating: ObservationRating): StandardObservationMark {
-  if (rating === 'High') return 3;
-  if (rating === 'Medium') return 2;
-  return 1;
-}
-
-function normalizeMetricMark(value: unknown, fallback: StandardObservationMark): StandardObservationMark {
-  return standardObservationMarks.some((mark) => mark.score === value) ? (value as StandardObservationMark) : fallback;
-}
-
-function metricDefaults(level: RubricLevel, participation: ObservationRating, confidence: ObservationRating, communication: ObservationRating) {
-  const skillMark = rubricMark[level];
-  const engagementMark = markFromRating(participation);
-  const independenceMark = markFromRating(confidence);
-  const expressionMark = markFromRating(communication);
-
-  return {
-    engagement: engagementMark,
-    competencySkill: skillMark,
-    communication: expressionMark,
-    independence: independenceMark,
-    peerInteraction: engagementMark,
-  } satisfies Record<StandardObservationMetricId, StandardObservationMark>;
-}
-
-function metricLabel(mark: StandardObservationMark) {
-  return standardObservationMarks.find((item) => item.score === mark)?.label ?? 'Not Yet';
-}
-
-function metricMarksForAll(mark: StandardObservationMark) {
-  return standardObservationMetrics.reduce((marks, metric) => {
-    marks[metric.id] = mark;
-    return marks;
-  }, {} as Record<StandardObservationMetricId, StandardObservationMark>);
-}
-
-function ratingFromMark(mark: StandardObservationMark): ObservationRating {
-  if (mark === 3) return 'High';
-  if (mark === 2) return 'Medium';
-  return 'Low';
-}
-
-function normalizeRating(value: unknown, fallback: ObservationRating): ObservationRating {
-  return ratingOptions.includes(value as ObservationRating) ? (value as ObservationRating) : fallback;
-}
-
-function normalizeEvidence(value: unknown): EvidenceType {
-  return evidenceTypes.includes(value as EvidenceType) ? (value as EvidenceType) : 'Observation Note';
-}
-
-function levelFromScore(score: number, attendance: AttendanceMark): RubricLevel {
-  if (attendance === 'Absent' || score <= 10) return 'Not Yet Observed';
-  if (score < 55) return 'Emerging';
-  if (score < 80) return 'Developing';
-  return 'Achieved';
-}
-
-function scoreObservation(record: StudentObservationRecord, _activity: EcceLmsActivity) {
-  if (record.attendance === 'Absent') return 0;
-  const totalWeight = standardObservationMetrics.reduce((sum, metric) => sum + metric.weight, 0);
-  const weighted = standardObservationMetrics.reduce((sum, metric) => {
-    const mark = record.metricMarks[metric.id] ?? 0;
-    return sum + (mark / 3) * 100 * metric.weight;
-  }, 0);
-  return Math.round(weighted / totalWeight);
-}
-
-function autoLevel(record: StudentObservationRecord, activity: EcceLmsActivity) {
-  return levelFromScore(scoreObservation(record, activity), record.attendance);
-}
-
-function remediationFor(level: RubricLevel, activity: EcceLmsActivity) {
-  if (level === 'Achieved') return `Invite child to demonstrate ${activity.title} with a peer.`;
-  if (level === 'Developing') return 'Repeat once with a new local material.';
-  if (level === 'Emerging') return activity.remediationSuggestions[0];
-  return 'Observe again in a smaller group with peer support.';
-}
-
-function buildDefaultRecord(child: ManagedChild, date: string, ageBand: AgeBand, activity: EcceLmsActivity): StudentObservationRecord {
-  const readiness = getReadiness(child);
-  const attendance = getAttendance(child);
-  const initialLevel = levelFromScore(readiness, attendance);
-  const rating = attendance === 'Absent' ? 'Low' : ratingFromReadiness(readiness);
-
-  return {
-    childId: child.id,
-    date,
-    ageBand,
-    activityId: activity.id,
-    attendance,
-    participation: rating,
-    confidence: rating,
-    communication: rating,
-    metricMarks: metricDefaults(initialLevel, rating, rating, rating),
-    indicatorRatings: indicatorDefaults(initialLevel, activity),
-    evidence: 'Observation Note',
-    evidenceNote: '',
-    quickNote: '',
-    remediation: remediationFor(initialLevel, activity),
-    parentConnect: child.nutritionStatus !== 'Normal' || initialLevel === 'Not Yet Observed' || initialLevel === 'Emerging',
-  };
-}
-
-function mergeRecord(base: StudentObservationRecord, saved?: Partial<StudentObservationRecord>): StudentObservationRecord {
-  if (!saved) return base;
-  const fallbackRating = base.attendance === 'Absent' ? 'Low' : base.participation;
-  const activity = activityContextById.get(base.activityId)?.activity ?? ecceActivityRepository[0];
-  const savedLegacyRubric = (saved as Partial<StudentObservationRecord> & { rubric?: RubricLevel }).rubric;
-  const legacyLevel = rubricLevels.includes(savedLegacyRubric as RubricLevel)
-    ? (savedLegacyRubric as RubricLevel)
-    : autoLevel(base, activity);
-  const participation = normalizeRating(saved.participation, fallbackRating);
-  const confidence = normalizeRating(saved.confidence, fallbackRating);
-  const communication = normalizeRating(saved.communication, fallbackRating);
-  const fallbackMetricMarks = metricDefaults(legacyLevel, participation, confidence, communication);
-  const savedMetricMarks = (saved.metricMarks ?? {}) as Partial<Record<StandardObservationMetricId, StandardObservationMark>>;
-
-  return {
-    ...base,
-    ...saved,
-    participation,
-    confidence,
-    communication,
-    metricMarks: standardObservationMetrics.reduce((marks, metric) => {
-      marks[metric.id] = normalizeMetricMark(savedMetricMarks[metric.id], fallbackMetricMarks[metric.id]);
-      return marks;
-    }, {} as Record<StandardObservationMetricId, StandardObservationMark>),
-    indicatorRatings: {
-      ...base.indicatorRatings,
-      ...indicatorDefaults(legacyLevel, activity),
-      ...(saved.indicatorRatings ?? {}),
-    },
-    evidence: normalizeEvidence(saved.evidence ?? base.evidence),
-    attendance: saved.attendance === 'Absent' ? 'Absent' : saved.attendance === 'Present' ? 'Present' : base.attendance,
-    quickNote: saved.quickNote ?? (saved as Partial<StudentObservationRecord> & { observationNote?: string }).observationNote ?? base.quickNote,
-  };
-}
-
-function savedRecordFromEntry(key: string, saved: Partial<StudentObservationRecord>) {
-  const [dateFromKey, ageBandFromKey, activityIdFromKey, childIdFromKey] = key.split('::');
-  const activityId = saved.activityId ?? activityIdFromKey;
-  const childId = saved.childId ?? childIdFromKey;
-  const context = activityContextById.get(activityId);
-  const child = managedChildren.find((item) => item.id === childId);
-
-  if (!context || !child) return null;
-
-  const ageBand = ageBands.includes(saved.ageBand as AgeBand) ? (saved.ageBand as AgeBand) : (ageBandFromKey as AgeBand);
-  const base = buildDefaultRecord(child, saved.date ?? dateFromKey, ageBand, context.activity);
-  return mergeRecord(base, saved);
-}
-
-function averageScore(records: StudentObservationRecord[]) {
-  if (!records.length) return 0;
-  const total = records.reduce((sum, record) => {
-    const activity = activityContextById.get(record.activityId)?.activity ?? ecceActivityRepository[0];
-    return sum + scoreObservation(record, activity);
-  }, 0);
-  return Math.round(total / records.length);
-}
-
-function moduleScore(records: StudentObservationRecord[], module: EcceLmsModule): ScoreSummary {
-  const activityIds = new Set(module.activities.map((activity) => activity.id));
-  const matching = records.filter((record) => activityIds.has(record.activityId));
-  return { label: module.title, score: averageScore(matching), count: matching.length };
-}
-
-function domainScore(records: StudentObservationRecord[], domain: EcceLmsDomain): ScoreSummary {
-  const moduleScores = domain.modules.map((module) => moduleScore(records, module));
-  const observedModules = moduleScores.filter((summary) => summary.count > 0);
-
-  return {
-    label: domain.shortName,
-    score: observedModules.length
-      ? Math.round(observedModules.reduce((sum, summary) => sum + summary.score, 0) / observedModules.length)
-      : 0,
-    count: observedModules.reduce((sum, summary) => sum + summary.count, 0),
-  };
-}
-
-function buildChildPerformance(
-  child: ManagedChild,
-  records: StudentObservationRecord[],
-  selectedDomain: EcceLmsDomain,
-  selectedModule: EcceLmsModule
-): ChildPerformance {
-  const domainScores = lmsDomains.map((domain) => domainScore(records, domain));
-  const observedDomains = domainScores.filter((summary) => summary.count > 0);
-  const weakestDomain = observedDomains.length
-    ? observedDomains.reduce((weakest, summary) => summary.score < weakest.score ? summary : weakest)
-    : { label: 'No domain yet', score: 0, count: 0 };
-
-  return {
-    child,
-    selectedModule: moduleScore(records, selectedModule),
-    selectedDomain: domainScore(records, selectedDomain),
-    weakestDomain,
-    domainScores,
-    moduleScores: selectedDomain.modules.map((module) => moduleScore(records, module)),
-  };
-}
-
-function nextActivity(module: EcceLmsModule, activity: EcceLmsActivity) {
-  const index = module.activities.findIndex((item) => item.id === activity.id);
-  return module.activities[index + 1] ?? module.activities[0] ?? activity;
-}
 
 function rowsForExport(activity: EcceLmsActivity, module: EcceLmsModule, performanceRows: ChildPerformance[], rows: StudentDailyView[]) {
   return rows.map((row, index) => {
@@ -399,7 +99,6 @@ function rowsForExport(activity: EcceLmsActivity, module: EcceLmsModule, perform
       Activity: activity.title,
       'Student ID': row.child.id,
       'Student Name': row.child.name,
-      Attendance: row.record.attendance,
       ...standardObservationMetrics.reduce((columns, metric) => {
         columns[`Metric - ${metric.label}`] = metricLabel(row.record.metricMarks[metric.id]);
         columns[`Score - ${metric.label}`] = row.record.metricMarks[metric.id];
@@ -502,14 +201,6 @@ function scoreTone(score: number, count: number) {
   return 'text-red-600 dark:text-red-300';
 }
 
-function shortIndicator(indicator: string) {
-  return indicator
-    .replace('Ability to ', '')
-    .replace('Accuracy of ', '')
-    .replace(' and interaction', '')
-    .replace(' level', '');
-}
-
 function compactText(value: string, limit = 112) {
   if (value.length <= limit) return value;
   const trimmed = value.slice(0, limit).replace(/\s+\S*$/, '');
@@ -548,6 +239,10 @@ function createVideoPoster(activity: EcceLmsActivity, domain: EcceLmsDomain) {
 }
 
 export function StudentObservationRegister() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const state = location.state as { selectedChildId?: string; cleared?: boolean } | null;
+
   const [records, setRecords] = useState<Record<string, Partial<StudentObservationRecord>>>(() => loadRecords());
   const [date, setDate] = useState(todayIso());
   const [ageBand, setAgeBand] = useState<AgeBand>('4-5 years');
@@ -558,6 +253,22 @@ export function StudentObservationRegister() {
   const [search, setSearch] = useState('');
   const [activitySearch, setActivitySearch] = useState('');
   const [savedAt, setSavedAt] = useState('');
+
+  useEffect(() => {
+    if (state?.selectedChildId && !state.cleared) {
+      const childId = state.selectedChildId;
+      const child = managedChildren.find((c) => c.id === childId);
+      if (child) {
+        const mockChild = mockChildren.find((mc) => mc.id === childId);
+        if (mockChild) {
+          const band: AgeBand = mockChild.ageMonths < 48 ? '3-4 years' : mockChild.ageMonths < 60 ? '4-5 years' : '5-6 years';
+          setAgeBand(band);
+        }
+        setWorkflowStep('details');
+        navigate(location.pathname + location.search, { replace: true, state: { cleared: true } });
+      }
+    }
+  }, [state, location.pathname, location.search, navigate]);
 
   const selectedDomain = useMemo(() => lmsDomains.find((domain) => domain.id === domainId) ?? lmsDomains[0], [domainId]);
   const selectedModule = useMemo(
@@ -585,8 +296,8 @@ export function StudentObservationRegister() {
         const key = getRecordKey(date, ageBand, selectedActivity.id, child.id);
         const base = buildDefaultRecord(child, date, ageBand, selectedActivity);
         const record = mergeRecord(base, records[key]);
-        const score = scoreObservation(record, selectedActivity);
-        const level = levelFromScore(score, record.attendance);
+        const score = scoreObservation(record);
+        const level = levelFromScore(score);
 
         return {
           child,
@@ -671,7 +382,7 @@ export function StudentObservationRegister() {
         indicatorRatings: patch.indicatorRatings ?? existing.indicatorRatings,
         metricMarks: patch.metricMarks ?? existing.metricMarks,
       };
-      const nextLevel = autoLevel(next, selectedActivity);
+      const nextLevel = autoLevel(next);
 
       return {
         ...current,
@@ -711,6 +422,12 @@ export function StudentObservationRegister() {
           </div>
 
           <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" className="min-h-11 rounded-xl">
+              <Link to="/worker/board">
+                <PenTool size={16} />
+                Whiteboard
+              </Link>
+            </Button>
             <Button type="button" variant="outline" className="min-h-11 rounded-xl" onClick={() => downloadCsv('ecce-module-observations.csv', exportRows)}>
               <Download size={16} />
               CSV
@@ -1081,15 +798,12 @@ function ActivityDetails({
   onBackToActivities: () => void;
   onUpdateRecord: (child: ManagedChild, patch: Partial<StudentObservationRecord>) => void;
 }) {
+  const location = useLocation();
+  const state = location.state as { selectedChildId?: string } | null;
   const tone = toneClasses(domain.tone);
-  const [activeChildId, setActiveChildId] = useState(() => rows[0]?.child.id ?? '');
+  const [selectedChildId, setSelectedChildId] = useState(() => state?.selectedChildId || (rows[0]?.child.id ?? ''));
+  const activeChildId = rows.some((row) => row.child.id === selectedChildId) ? selectedChildId : rows[0]?.child.id ?? '';
   const activeRow = rows.find((row) => row.child.id === activeChildId) ?? rows[0];
-
-  useEffect(() => {
-    if (rows.length && !rows.some((row) => row.child.id === activeChildId)) {
-      setActiveChildId(rows[0].child.id);
-    }
-  }, [activeChildId, rows]);
 
   return (
     <div className="space-y-4">
@@ -1183,7 +897,7 @@ function ActivityDetails({
               rows={rows}
               activeChildId={activeRow.child.id}
               performanceRows={performanceRows}
-              onSelect={setActiveChildId}
+              onSelect={setSelectedChildId}
             />
             <StudentObservationCard
               row={activeRow}
@@ -1336,6 +1050,8 @@ function StudentObservationCard({
 }) {
   const { child, record, level, score } = row;
   const domainTone = toneClasses(domain.tone);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   return (
     <article className="rounded-2xl border border-border bg-background/60 p-3 sm:p-4">
@@ -1345,7 +1061,17 @@ function StudentObservationCard({
             {child.name.charAt(0)}
           </div>
           <div className="min-w-0">
-            <p className="font-black text-foreground">{child.name}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="font-black text-foreground">{child.name}</p>
+              <button
+                type="button"
+                onClick={() => navigate(`/worker/child/${child.id}`, { state: { from: location.pathname + location.search, fromLabel: 'ECCE Monitor' } })}
+                title="View Child Dashboard"
+                className="text-muted-foreground hover:text-primary transition-colors focus:outline-none"
+              >
+                <ExternalLink size={14} className="inline" />
+              </button>
+            </div>
             <p className="text-xs font-semibold text-muted-foreground">{child.ageLabel} / Parent: {child.parentName}</p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <span className={cn('rounded-full border px-3 py-1 text-xs font-black', levelClasses(level))}>{level}</span>
@@ -1358,13 +1084,6 @@ function StudentObservationCard({
           </div>
         </div>
 
-        <div className="xl:w-52">
-          <SegmentedControl
-            options={['Present', 'Absent'] as const}
-            value={record.attendance}
-            onChange={(attendance) => onUpdate({ attendance })}
-          />
-        </div>
       </div>
 
       <div className="mt-4">
@@ -1480,9 +1199,6 @@ function StudentReviewRoster({
                 </span>
                 <span className="rounded-full bg-background/70 px-2 py-0.5 text-[10px] font-black">
                   D {performance?.selectedDomain.count ? `${performance.selectedDomain.score}%` : 'NA'}
-                </span>
-                <span className="rounded-full bg-background/70 px-2 py-0.5 text-[10px] font-black">
-                  {row.record.attendance}
                 </span>
               </div>
             </button>
@@ -1723,58 +1439,11 @@ function SectionTitle({ eyebrow, title, description }: { eyebrow: string; title:
   );
 }
 
-function BriefBlock({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-border bg-background/60 p-4">
-      <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">{title}</p>
-      <p className="mt-2 text-sm font-semibold leading-6 text-foreground">{children}</p>
-    </div>
-  );
-}
-
-function SimpleList({ title, items }: { title: string; items: string[] }) {
-  return (
-    <div className="rounded-2xl border border-border bg-background/60 p-4">
-      <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">{title}</p>
-      <ol className="mt-2 space-y-2">
-        {items.map((item, index) => (
-          <li key={`${title}-${item}`} className="flex gap-2 text-sm font-semibold leading-6 text-foreground">
-            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-black text-muted-foreground">
-              {index + 1}
-            </span>
-            <span>{item}</span>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
-
 function ControlGroup({ title, children, className }: { title: string; children: ReactNode; className?: string }) {
   return (
     <div className={cn('space-y-1.5', className)}>
       <p className="text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">{title}</p>
       {children}
-    </div>
-  );
-}
-
-function SegmentedControl<T extends string>({ options, value, onChange }: { options: readonly T[]; value: T; onChange: (value: T) => void }) {
-  return (
-    <div className={cn('grid gap-1 rounded-xl bg-muted/50 p-1', options.length === 2 ? 'grid-cols-2' : 'grid-cols-3')}>
-      {options.map((option) => (
-        <button
-          key={option}
-          type="button"
-          onClick={() => onChange(option)}
-          className={cn(
-            'min-h-11 rounded-lg px-2 text-xs font-black transition-colors',
-            value === option ? 'bg-emerald-600 text-white' : 'text-muted-foreground hover:bg-card hover:text-foreground'
-          )}
-        >
-          {option}
-        </button>
-      ))}
     </div>
   );
 }

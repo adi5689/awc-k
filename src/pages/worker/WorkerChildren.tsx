@@ -130,7 +130,7 @@ export function WorkerChildren() {
                         type="button"
                         variant="outline"
                         className="rounded-xl"
-                        onClick={() => navigate(`/worker/child/${child.id}`)}
+                        onClick={() => navigate(`/worker/child/${child.id}`, { state: { from: location.pathname, fromLabel: 'Children' } })}
                       >
                         <Eye size={14} />
                         View
