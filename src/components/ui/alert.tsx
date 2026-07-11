@@ -1,4 +1,4 @@
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Info, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/utils';
 import type { ReactNode } from 'react';
 
@@ -10,29 +10,45 @@ type AlertProps = {
   className?: string;
 };
 
+const toneConfig = {
+  info: {
+    container: 'border-sky-200 bg-sky-50/80 dark:border-sky-800 dark:bg-sky-950/30',
+    icon: 'text-sky-600 dark:text-sky-400',
+    Icon: Info,
+  },
+  warning: {
+    container: 'border-amber-200 bg-amber-50/80 dark:border-amber-800 dark:bg-amber-950/30',
+    icon: 'text-amber-600 dark:text-amber-400',
+    Icon: AlertTriangle,
+  },
+  critical: {
+    container: 'border-red-200 bg-red-50/80 dark:border-red-800 dark:bg-red-950/30',
+    icon: 'text-red-600 dark:text-red-400',
+    Icon: AlertCircle,
+  },
+  success: {
+    container: 'border-emerald-200 bg-emerald-50/80 dark:border-emerald-800 dark:bg-emerald-950/30',
+    icon: 'text-emerald-600 dark:text-emerald-400',
+    Icon: CheckCircle2,
+  },
+} as const;
+
 export function Alert({ title, description, tone = 'info', action, className }: AlertProps) {
+  const config = toneConfig[tone];
+  const ToneIcon = config.Icon;
+
   return (
     <div
+      role="alert"
       className={cn(
-        'rounded-[1.25rem] border p-4 shadow-sm',
-        tone === 'info' && 'border-sky-200 bg-sky-50/80 dark:border-sky-900 dark:bg-sky-950/20',
-        tone === 'warning' && 'border-amber-200 bg-amber-50/80 dark:border-amber-900 dark:bg-amber-950/20',
-        tone === 'critical' && 'border-red-200 bg-red-50/80 dark:border-red-900 dark:bg-red-950/20',
-        tone === 'success' && 'border-emerald-200 bg-emerald-50/80 dark:border-emerald-900 dark:bg-emerald-950/20',
+        'rounded-xl border p-4 shadow-xs',
+        config.container,
         className
       )}
     >
       <div className="flex items-start gap-3">
-        <div
-          className={cn(
-            'mt-0.5',
-            tone === 'info' && 'text-sky-600 dark:text-sky-300',
-            tone === 'warning' && 'text-amber-600 dark:text-amber-300',
-            tone === 'critical' && 'text-red-600 dark:text-red-300',
-            tone === 'success' && 'text-emerald-600 dark:text-emerald-300'
-          )}
-        >
-          <AlertTriangle size={18} />
+        <div className={cn('mt-0.5 shrink-0', config.icon)}>
+          <ToneIcon size={18} />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-foreground">{title}</p>

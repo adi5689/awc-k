@@ -8,7 +8,6 @@ import {
   BellRing,
   BookOpenCheck,
   CalendarCheck2,
-  ClipboardCheck,
   FileBarChart2,
   HeartPulse,
   Lightbulb,
@@ -53,10 +52,10 @@ const primaryWorkflows = [
     tone: 'emerald',
   },
   {
-    label: 'Record observations',
-    helper: 'ECCE evidence and rubric',
-    path: '/worker/student-observations',
-    icon: ClipboardCheck,
+    label: 'Learning LMS',
+    helper: 'Plan, teach, observe',
+    path: '/worker/lms',
+    icon: BookOpenCheck,
     tone: 'sky',
   },
   {

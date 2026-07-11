@@ -61,192 +61,206 @@ export function Header() {
   };
 
   return (
-    <header className="h-16 px-4 md:px-6 bg-background/80 backdrop-blur-xl border-b border-border/80 flex items-center justify-between sticky top-0 z-10">
-      {/* Left: Page title area */}
-      <div className="flex items-center gap-3">
-        <div>
-        <h1 className="text-base md:text-lg font-semibold text-foreground tracking-tight">
-          {currentUser?.district && (
-            <span className="text-muted-foreground font-normal text-sm mr-2 hidden md:inline">
-              {currentUser.district} {t('common.district_suffix')} -
-            </span>
-          )}
-          {t('header.title')}
-        </h1>
-        <p className="hidden md:block text-xs text-muted-foreground">{t('header.subtitle')}</p>
-        </div>
-        <div className="hidden lg:flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground">
-          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700">{roleLabel}</span>
-          <span>{currentUser?.district ?? 'District Workspace'}</span>
-        </div>
+    <header className="h-14 px-4 md:px-6 bg-background/80 backdrop-blur-xl border-b border-border flex items-center justify-between sticky top-0 z-10">
+      {/* Left: Workspace Context (Simplified & Integrated) */}
+      <div className="flex items-center gap-2.5">
+        <span className="text-sm font-semibold text-foreground tracking-tight">{t('header.title')}</span>
+        <span className="h-3.5 w-px bg-border hidden sm:block" />
+        <span className="text-[11px] text-muted-foreground/90 hidden sm:inline-flex items-center gap-1.5 bg-muted/40 px-2 py-0.5 rounded-md border border-border/40">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          {currentUser?.district ?? 'Kalahandi'} · {roleLabel}
+        </span>
       </div>
 
-      {/* Right: Controls */}
-      <div className="flex items-center gap-2 md:gap-3">
-        <div className="hidden xl:flex items-center rounded-2xl border border-border bg-card px-3 py-2 shadow-sm">
-          <Search size={15} className="text-muted-foreground" />
+      {/* Right: Clean, grouped controls */}
+      <div className="flex items-center gap-3">
+        {/* Search */}
+        <div className="hidden lg:flex items-center rounded-lg bg-muted/45 px-2.5 py-1.5 transition-all focus-within:bg-muted/70 focus-within:ring-1 focus-within:ring-ring/40 w-44 focus-within:w-56">
+          <Search size={14} className="text-muted-foreground/80 shrink-0" />
           <input
             type="text"
-            placeholder="Search centers, reports, alerts..."
-            className="ml-2 w-64 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            placeholder="Search..."
+            className="ml-1.5 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground/80 w-full"
           />
         </div>
-        <div className="hidden sm:flex items-center rounded-xl border border-border bg-card p-1 shadow-sm">
+
+        {/* Language switcher (Segmented control) */}
+        <div className="hidden sm:flex items-center rounded-lg bg-muted/50 p-0.5 text-xs">
           <button
             onClick={() => setLanguage('en')}
             className={cn(
-              'rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors',
-              language === 'en' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+              'rounded-md px-2 py-0.5 text-[11px] font-semibold transition-all',
+              language === 'en' ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground/80 hover:text-foreground'
             )}
           >
-            {t('language.english')}
+            EN
           </button>
           <button
             onClick={() => setLanguage('od')}
             className={cn(
-              'rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors',
-              language === 'od' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+              'rounded-md px-2 py-0.5 text-[11px] font-semibold transition-all',
+              language === 'od' ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground/80 hover:text-foreground'
             )}
           >
-            {t('language.odia')}
+            ଓଡ଼ି
           </button>
         </div>
 
-        {/* Online/Offline Toggle */}
+        {/* Online/Offline Toggle (Compact Pill) */}
         <button
           onClick={() => setOnlineStatus(!isOnline)}
           className={cn(
-            'flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 border shadow-sm',
+            'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border shadow-xs transition-all hover:bg-muted/20 shrink-0',
             isOnline
-              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
-              : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'
+              ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20'
+              : 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20'
           )}
+          title={isOnline ? "Online (Click to go offline)" : "Offline (Click to go online)"}
         >
-          {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
-          <span className="hidden sm:inline">{isOnline ? t('header.online') : t('header.offline')}</span>
+          <span className={cn('h-1.5 w-1.5 rounded-full', isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500')} />
+          <span className="text-[11px] font-semibold hidden md:inline">{isOnline ? 'Online' : 'Offline'}</span>
         </button>
 
-        {/* Sync Status */}
+        {/* Sync Status / Pending */}
         {pendingSync > 0 && (
           <button
             onClick={() => {
               if (isOnline) processSyncQueue();
             }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 transition-colors hover:bg-amber-100 dark:hover:bg-amber-950/60 shadow-sm"
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 transition-colors hover:bg-amber-500/25 shrink-0"
           >
-            <RefreshCcw size={14} className="animate-spin" />
-            {pendingSync} {t('header.pending')}
+            <RefreshCcw size={12} className="animate-spin" />
+            <span>{pendingSync} pending</span>
           </button>
         )}
 
         {lastSyncTime && pendingSync === 0 && (
-          <span className="text-xs text-muted-foreground hidden md:inline">
-            {t('header.synced')} {formatRelativeTime(lastSyncTime, t)}
+          <span className="text-[10px] text-muted-foreground/75 hidden md:inline-flex items-center gap-1 shrink-0">
+            <span className="w-1 h-1 rounded-full bg-slate-400" />
+            {formatRelativeTime(lastSyncTime, t)}
           </span>
         )}
 
-        {/* Theme Toggle */}
-        <button
-          onClick={toggleTheme}
-          className="p-2 rounded-xl hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-          title={theme === 'light' ? t('header.theme_dark') : t('header.theme_light')}
-        >
-          {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
-        </button>
-
-        {/* Notifications */}
-        <div className="relative" ref={notifRef}>
+        <div className="flex items-center gap-0.5">
+          {/* Theme Toggle */}
           <button
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2 rounded-xl hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+            onClick={toggleTheme}
+            className="p-1.5 rounded-lg hover:bg-accent/60 transition-colors text-muted-foreground/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring shrink-0"
+            title={theme === 'light' ? t('header.theme_dark') : t('header.theme_light')}
+            aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
           >
-            <Bell size={18} />
-            {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse-glow">
-                {unreadCount}
-              </span>
-            )}
+            {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
           </button>
 
-          {/* Notification Dropdown */}
-          {showNotifications && (
-            <div className="absolute right-0 top-full mt-2 w-80 md:w-96 bg-card border border-border rounded-xl shadow-2xl overflow-hidden animate-scale-in z-50">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                <h3 className="font-semibold text-sm text-foreground">{t('header.notifications')}</h3>
-                <div className="flex items-center gap-2">
-                  {unreadCount > 0 && (
+          {/* Notifications */}
+          <div className="relative" ref={notifRef}>
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="relative p-1.5 rounded-lg hover:bg-accent/60 transition-colors text-muted-foreground/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring shrink-0"
+              aria-haspopup="true"
+              aria-expanded={showNotifications}
+              aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
+            >
+              <Bell size={16} />
+              {unreadCount > 0 && (
+                <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center" role="status">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* Notification Dropdown */}
+            {showNotifications && (
+              <div className="absolute right-0 top-full mt-2 w-80 md:w-96 bg-card border border-border rounded-xl shadow-xl overflow-hidden animate-scale-in z-50">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                  <h3 className="font-semibold text-sm text-foreground">{t('header.notifications')}</h3>
+                  <div className="flex items-center gap-2">
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllNotificationsRead}
+                        className="text-xs text-primary hover:underline flex items-center gap-1 font-medium"
+                      >
+                        <CheckCheck size={12} /> {t('header.mark_all_read')}
+                      </button>
+                    )}
                     <button
-                      onClick={markAllNotificationsRead}
-                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                      onClick={() => setShowNotifications(false)}
+                      className="text-muted-foreground hover:text-foreground rounded-md p-1 hover:bg-accent transition-colors"
+                      aria-label="Close notifications"
                     >
-                      <CheckCheck size={12} /> {t('header.mark_all_read')}
+                      <X size={14} />
                     </button>
+                  </div>
+                </div>
+
+                <div className="max-h-80 overflow-y-auto scrollbar-thin">
+                  {notifications.length === 0 ? (
+                    <div className="p-8 text-center text-muted-foreground text-sm">{t('header.no_notifications')}</div>
+                  ) : (
+                    notifications.map((notif) => (
+                      <button
+                        key={notif.id}
+                        onClick={() => markNotificationRead(notif.id)}
+                        className={cn(
+                          'w-full text-left px-4 py-3 border-b border-border/50 hover:bg-accent/50 transition-colors',
+                          !notif.read && 'bg-primary/5'
+                        )}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="mt-0.5 shrink-0">{getSeverityIcon(notif.severity)}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-foreground">{notif.title}</span>
+                              {!notif.read && <span className="w-2 h-2 bg-primary rounded-full shrink-0" />}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{notif.message}</p>
+                            <span className="text-[10px] text-muted-foreground mt-1 block">{formatRelativeTime(notif.timestamp ?? '', t)}</span>
+                          </div>
+                        </div>
+                      </button>
+                    ))
                   )}
-                  <button onClick={() => setShowNotifications(false)} className="text-muted-foreground hover:text-foreground">
-                    <X size={16} />
-                  </button>
                 </div>
               </div>
-
-              <div className="max-h-80 overflow-y-auto scrollbar-thin">
-                {notifications.length === 0 ? (
-                  <div className="p-6 text-center text-muted-foreground text-sm">{t('header.no_notifications')}</div>
-                ) : (
-                  notifications.map((notif) => (
-                    <button
-                      key={notif.id}
-                      onClick={() => markNotificationRead(notif.id)}
-                      className={cn(
-                        'w-full text-left px-4 py-3 border-b border-border/50 hover:bg-accent/50 transition-colors',
-                        !notif.read && 'bg-blue-50/50 dark:bg-blue-950/20'
-                      )}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="mt-0.5">{getSeverityIcon(notif.severity)}</div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold text-foreground">{notif.title}</span>
-                            {!notif.read && <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0" />}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{notif.message}</p>
-                          <span className="text-[10px] text-muted-foreground mt-1 block">{formatRelativeTime(notif.timestamp ?? '', t)}</span>
-                        </div>
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
-        {/* User Avatar */}
-        <div className="relative" ref={profileRef}>
+        <span className="h-4 w-px bg-border shrink-0" />
+
+        {/* User Profile Avatar Dropdown */}
+        <div className="relative shrink-0" ref={profileRef}>
           <button
             onClick={() => setShowProfileMenu((open) => !open)}
-            className="flex items-center gap-2 rounded-2xl border border-border bg-card px-2 py-1.5 shadow-sm transition hover:bg-accent"
+            className="flex items-center gap-1.5 rounded-full transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring p-0.5 pr-1.5"
+            aria-haspopup="true"
+            aria-expanded={showProfileMenu}
           >
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-400 via-emerald-500 to-amber-400 flex items-center justify-center text-white text-xs font-bold shadow-md">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary/80 to-info/80 flex items-center justify-center text-white text-xs font-bold shadow-sm shrink-0">
               {currentUser?.name?.charAt(0) || 'U'}
             </div>
-            <div className="hidden text-left lg:block">
-              <p className="text-sm font-semibold text-foreground">{currentUser?.name}</p>
-              <p className="text-xs text-muted-foreground">{roleLabel}</p>
-            </div>
-            <ChevronDown size={16} className="hidden text-muted-foreground lg:block" />
+            <span className="text-xs font-semibold text-foreground hidden md:block select-none truncate max-w-[100px]">
+              {currentUser?.name?.split(' ')[0] || 'User'}
+            </span>
+            <ChevronDown size={12} className="text-muted-foreground/75 hidden md:block shrink-0" />
           </button>
+          
           {showProfileMenu && (
-            <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-border bg-card p-2 shadow-2xl">
+            <div className="absolute right-0 top-full mt-2 w-52 rounded-xl border border-border bg-card p-1.5 shadow-xl animate-scale-in z-50">
+              <div className="px-2.5 py-1.5 border-b border-border/60 mb-1">
+                <p className="text-xs font-semibold text-foreground truncate">{currentUser?.name}</p>
+                <p className="text-[10px] text-muted-foreground truncate mt-0.5">{roleLabel}</p>
+              </div>
               <button
                 type="button"
                 onClick={() => {
                   setShowProfileMenu(false);
                   navigate(rolePath);
                 }}
-                className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm text-foreground transition hover:bg-accent"
+                className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs font-medium text-foreground transition-colors hover:bg-accent"
               >
                 Open profile
-                <ChevronDown size={14} className="-rotate-90 text-muted-foreground" />
+                <ChevronDown size={12} className="-rotate-90 text-muted-foreground/70" />
               </button>
               <button
                 type="button"
@@ -255,9 +269,9 @@ export function Header() {
                   logout();
                   navigate('/login', { replace: true });
                 }}
-                className="mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-red-600 transition hover:bg-red-50"
+                className="mt-0.5 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-semibold text-red-600 dark:text-red-400 transition-colors hover:bg-red-50 dark:hover:bg-red-950/30"
               >
-                <LogOut size={14} />
+                <LogOut size={12} />
                 Sign out
               </button>
             </div>

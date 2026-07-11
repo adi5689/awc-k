@@ -33,6 +33,7 @@ import { PredictiveRisk } from './pages/worker/PredictiveRisk';
 import { LearningSession } from './pages/worker/LearningSession';
 import { AdaptiveLearning } from './pages/worker/AdaptiveLearning';
 import { WorkerAdaptiveLearning } from './pages/worker/WorkerAdaptiveLearning';
+import { WorkerLMSHub } from './pages/worker/WorkerLMSHub';
 
 // Supervisor pages
 import { SupervisorDashboard } from './pages/supervisor/SupervisorDashboard';
@@ -96,14 +97,15 @@ export default function App() {
         <Route path="nutrition" element={<Nutrition />} />
         <Route path="parent-engagement" element={<ParentEngagement />} />
         <Route path="predictive-risk" element={<PredictiveRisk />} />
+        <Route path="lms" element={<WorkerLMSHub />} />
         <Route path="learning-session-live" element={<LearningSession />} />
         <Route path="adaptive-learning-lab" element={<AdaptiveLearning />} />
         <Route path="worker-adaptive-learning" element={<WorkerAdaptiveLearning />} />
         <Route path="poshan-tracker-upload" element={<PoshanTrackerUpload />} />
         <Route path="poshan-upload" element={<Navigate to="/worker/nutrition-forecast" replace />} />
-        <Route path="learning" element={<Navigate to="/worker/student-observations" replace />} />
+        <Route path="learning" element={<Navigate to="/worker/lms" replace />} />
         <Route path="learning-session" element={<Navigate to="/worker/student-observations" replace />} />
-        <Route path="adaptive-learning" element={<Navigate to="/worker/student-observations" replace />} />
+        <Route path="adaptive-learning" element={<Navigate to="/worker/worker-adaptive-learning" replace />} />
         <Route path="board" element={<GreenBoardPage />} />
         <Route path="alerts" element={<WorkerAlerts />} />
         <Route path="ai-dashboard" element={<AIAssistedDashboard />} />

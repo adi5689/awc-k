@@ -533,6 +533,7 @@ export const translations: Record<'en' | 'od', Record<string, string>> = {
     'nav.reports': 'Reports',
     'nav.poshan_upload': 'Poshan Upload',
     'nav.nutrition_forecast': 'Nutrition Forecast',
+    'nav.lms_home': 'LMS Home',
     'nav.student_observations': 'ECCE LMS Monitor',
     'nav.group.dashboard': 'Dashboard',
     'nav.group.children': 'Children',
@@ -1229,6 +1230,7 @@ export const translations: Record<'en' | 'od', Record<string, string>> = {
     'nav.district': 'ଜିଲ୍ଲା ଡ୍ୟାଶବୋର୍ଡ',
     'nav.heatmap': 'ହିଟମ୍ୟାପ୍',
     'nav.reports': 'ରିପୋର୍ଟ',
+    'nav.lms_home': 'LMS ହୋମ୍',
     'nav.settings': 'ସେଟିଂସ',
     'nav.logout': 'ଲଗଆଉଟ୍',
 

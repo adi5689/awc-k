@@ -27,14 +27,19 @@ export function AppLayout() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      {/* Skip to content — accessibility */}
+      <a href="#main-content" className="skip-to-content">
+        Skip to main content
+      </a>
+
       {/* Toast notification system */}
       <Toaster
         position="top-right"
         toastOptions={{
           duration: 4000,
-          className: '!bg-card !text-card-foreground !border !border-border !shadow-xl !rounded-xl',
-          success: { className: '!bg-emerald-50 !dark:bg-emerald-950/50 !text-emerald-800 !dark:text-emerald-200 !border-emerald-200' },
-          error: { className: '!bg-red-50 !dark:bg-red-950/50 !text-red-800 !dark:text-red-200 !border-red-200' },
+          className: '!bg-card !text-card-foreground !border !border-border !shadow-lg !rounded-xl !text-sm',
+          success: { className: '!bg-emerald-50 !dark:bg-emerald-950/50 !text-emerald-800 !dark:text-emerald-200 !border-emerald-200 !shadow-lg !rounded-xl !text-sm' },
+          error: { className: '!bg-red-50 !dark:bg-red-950/50 !text-red-800 !dark:text-red-200 !border-red-200 !shadow-lg !rounded-xl !text-sm' },
         }}
       />
 
@@ -47,7 +52,11 @@ export function AppLayout() {
       {/* Main content area */}
       <div className="flex-1 flex h-screen flex-col overflow-hidden transition-all duration-300">
         <Header />
-        <main className="flex-1 overflow-y-auto scrollbar-thin">
+        <main
+          id="main-content"
+          className="flex-1 overflow-y-auto scrollbar-thin"
+          aria-label="Main content"
+        >
           <div className={cn(
             'p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto',
             userRole === 'worker' && 'pb-28 md:pb-28 lg:pb-8'

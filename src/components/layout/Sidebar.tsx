@@ -10,10 +10,11 @@ import { cn } from '../../utils';
 import { useTranslation } from '../../hooks/useTranslation';
 import {
   LayoutDashboard, Users, Activity, Brain, BookOpen, BrainCircuit,
-  Map, Settings, ChevronLeft, ChevronRight, ChevronDown,
+  Settings, ChevronLeft, ChevronRight, ChevronDown,
   LogOut, Sparkles, ClipboardList, HeartPulse, Syringe, CalendarDays,
   FileBarChart2, WifiOff, Route, GraduationCap, ShieldCheck,
-  PlugZap, MoreHorizontal, UploadCloud, ClipboardCheck, PenTool, Briefcase, Building2,
+  MoreHorizontal, UploadCloud, ClipboardCheck, PenTool, Briefcase, Building2,
+  BookOpenCheck, PlayCircle,
 } from 'lucide-react';
 
 const workerNavGroups = [
@@ -26,7 +27,10 @@ const workerNavGroups = [
     label: 'nav.group.learning',
     collapsible: true,
     items: [
+      // { name: 'nav.lms_home', icon: BookOpenCheck, path: '/worker/lms' },
       { name: 'nav.student_observations', icon: ClipboardCheck, path: '/worker/student-observations' },
+      // { name: 'nav.adaptive_learning', icon: Route, path: '/worker/worker-adaptive-learning' },
+      // { name: 'nav.learning_session', icon: PlayCircle, path: '/worker/learning-session-live' },
       { name: 'nav.whiteboard', icon: PenTool, path: '/worker/board' },
     ],
   },
@@ -109,28 +113,76 @@ const supervisorNavGroups = [
   },
 ];
 
-const adminNav = [
-  { name: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
-  { name: 'Center & User Management', icon: Building2, path: '/admin/centers-users' },
-  { name: 'Officials Management', icon: Briefcase, path: '/admin/officials-management' },
-  { name: 'Learning Modules', icon: GraduationCap, path: '/admin/learning-modules' },
-  { name: 'Activities', icon: ClipboardList, path: '/admin/activities' },
-  { name: 'Poshan Tracker Uploads', icon: UploadCloud, path: '/admin/poshan-uploads' },
-  { name: 'AI Predictions', icon: Brain, path: '/admin/ai-predictions' },
-  { name: 'Center Performance', icon: Activity, path: '/admin/center-performance' },
-  { name: 'Reports', icon: FileBarChart2, path: '/admin/reports' },
-  { name: 'Settings', icon: Settings, path: '/admin/settings' },
+const adminNavGroups = [
+  {
+    label: 'Overview',
+    collapsible: false,
+    items: [
+      { name: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
+    ],
+  },
+  {
+    label: 'Management',
+    collapsible: true,
+    items: [
+      { name: 'Center & User Management', icon: Building2, path: '/admin/centers-users' },
+      { name: 'Officials Management', icon: Briefcase, path: '/admin/officials-management' },
+    ],
+  },
+  {
+    label: 'Content',
+    collapsible: true,
+    items: [
+      { name: 'Learning Modules', icon: GraduationCap, path: '/admin/learning-modules' },
+      { name: 'Activities', icon: ClipboardList, path: '/admin/activities' },
+    ],
+  },
+  {
+    label: 'Data & AI',
+    collapsible: true,
+    items: [
+      { name: 'Poshan Tracker Uploads', icon: UploadCloud, path: '/admin/poshan-uploads' },
+      { name: 'AI Predictions', icon: Brain, path: '/admin/ai-predictions' },
+    ],
+  },
+  {
+    label: 'Analytics',
+    collapsible: true,
+    items: [
+      { name: 'Center Performance', icon: Activity, path: '/admin/center-performance' },
+      { name: 'Reports', icon: FileBarChart2, path: '/admin/reports' },
+      { name: 'Settings', icon: Settings, path: '/admin/settings' },
+    ],
+  },
 ];
 
-const officialNav = [
-  { name: 'Dashboard', icon: LayoutDashboard, path: '/officials' },
-  { name: 'Centers Overview', icon: Building2, path: '/officials/centers' },
-  { name: 'Nutrition Forecast', icon: HeartPulse, path: '/officials/nutrition-forecast' },
-  { name: 'Learning Details', icon: BookOpen, path: '/officials/learning-details' },
-  { name: 'Center Details', icon: ClipboardList, path: '/officials/center/AWC-1024' },
-  { name: 'Monthly Reports', icon: FileBarChart2, path: '/officials/reports' },
-  { name: 'Alerts', icon: ShieldCheck, path: '/officials/alerts' },
-  { name: 'Profile', icon: Settings, path: '/officials/profile' },
+const officialNavGroups = [
+  {
+    label: 'Overview',
+    collapsible: false,
+    items: [
+      { name: 'Dashboard', icon: LayoutDashboard, path: '/officials' },
+      { name: 'Centers Overview', icon: Building2, path: '/officials/centers' },
+    ],
+  },
+  {
+    label: 'Monitoring',
+    collapsible: true,
+    items: [
+      { name: 'Nutrition Forecast', icon: HeartPulse, path: '/officials/nutrition-forecast' },
+      { name: 'Learning Details', icon: BookOpen, path: '/officials/learning-details' },
+      { name: 'Center Details', icon: ClipboardList, path: '/officials/center/AWC-1024' },
+    ],
+  },
+  {
+    label: 'Reports & Alerts',
+    collapsible: true,
+    items: [
+      { name: 'Monthly Reports', icon: FileBarChart2, path: '/officials/reports' },
+      { name: 'Alerts', icon: ShieldCheck, path: '/officials/alerts' },
+      { name: 'Profile', icon: Settings, path: '/officials/profile' },
+    ],
+  },
 ];
 
 export function Sidebar() {
@@ -139,35 +191,28 @@ export function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const isWorker = userRole === 'worker';
-  const isOfficial = userRole === 'official';
   const [dockMoreOpen, setDockMoreOpen] = useState(false);
+
+  const getNavGroups = () => {
+    if (userRole === 'worker') return workerNavGroups;
+    if (userRole === 'supervisor') return supervisorNavGroups;
+    if (userRole === 'official') return officialNavGroups;
+    return adminNavGroups;
+  };
+
+  const navGroups = getNavGroups();
+  const basePath = userRole === 'worker' ? '/worker' : userRole === 'supervisor' ? '/supervisor' : userRole === 'official' ? '/officials' : '/admin';
 
   // Initialize open groups based on which group has the active route
   const getInitialOpenGroups = () => {
     const open = new Set<string>();
-    
-    // For Worker
-    if (userRole === 'worker') {
-      for (const group of workerNavGroups) {
-        if (!group.collapsible) {
-          open.add(group.label);
-        } else if (group.items.some((item) => location.pathname === item.path || location.pathname.startsWith(item.path + '/'))) {
-          open.add(group.label);
-        }
+    for (const group of navGroups) {
+      if (!group.collapsible) {
+        open.add(group.label);
+      } else if (group.items.some((item) => location.pathname === item.path || location.pathname.startsWith(item.path + '/'))) {
+        open.add(group.label);
       }
     }
-    
-    // For Supervisor
-    if (userRole === 'supervisor') {
-      for (const group of supervisorNavGroups) {
-        if (!group.collapsible) {
-          open.add(group.label);
-        } else if (group.items.some((item) => location.pathname === item.path || location.pathname.startsWith(item.path + '/'))) {
-          open.add(group.label);
-        }
-      }
-    }
-    
     return open;
   };
 
@@ -199,14 +244,14 @@ export function Sidebar() {
   const sidebar = (
     <aside
       className={cn(
-        'flex flex-col h-screen bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),_transparent_30%),linear-gradient(180deg,#0b1220_0%,#111827_42%,#0f172a_100%)] dark:bg-[radial-gradient(circle_at_top,_rgba(34,197,94,0.14),_transparent_30%),linear-gradient(180deg,#020617_0%,#0f172a_42%,#020617_100%)] text-white transition-all duration-300 relative z-20 border-r border-white/5',
+        'flex flex-col h-screen sidebar-bg text-white transition-all duration-300 relative z-20 border-r border-white/5',
         isWorker ? 'hidden lg:flex' : 'flex',
         sidebarCollapsed ? 'w-[72px]' : 'w-64'
       )}
     >
       {/* Brand header */}
-      <div className="flex items-center gap-3 h-16 px-4 border-b border-slate-800">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-400 via-emerald-500 to-amber-400 flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-900/20">
+      <div className="flex items-center gap-3 h-16 px-4 border-b border-slate-800/60">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/90 to-info/90 flex items-center justify-center shrink-0 shadow-lg">
           <Sparkles className="w-5 h-5 text-white" />
         </div>
         {!sidebarCollapsed && (
@@ -217,7 +262,8 @@ export function Sidebar() {
         )}
         <button
           onClick={() => collapseSidebar(!sidebarCollapsed)}
-          className="ml-auto p-1.5 rounded-md hover:bg-slate-800 transition-colors text-slate-400 hover:text-white"
+          className="ml-auto p-1.5 rounded-lg hover:bg-white/10 transition-colors text-slate-400 hover:text-white"
+          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {sidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
@@ -226,7 +272,7 @@ export function Sidebar() {
       {/* Role badge */}
       {!sidebarCollapsed && (
         <div className="px-4 py-3">
-          <div className="px-3 py-2 rounded-2xl bg-white/5 backdrop-blur border border-white/10">
+          <div className="px-3 py-2.5 rounded-xl bg-white/5 backdrop-blur border border-white/8">
             <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">{t('role.logged_in_as')}</p>
             <p className="text-xs text-slate-300 font-medium truncate mt-0.5">{currentUser?.name}</p>
             <span className={cn(
@@ -242,110 +288,89 @@ export function Sidebar() {
         </div>
       )}
 
-      {/* Navigation items */}
-      <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto scrollbar-thin">
-        {userRole === 'worker' || userRole === 'supervisor' ? (
-          (userRole === 'worker' ? workerNavGroups : supervisorNavGroups).map((group) => {
-            const isOpen = openGroups.has(group.label);
-            const hasActiveChild = group.items.some(
-              (item) => location.pathname === item.path || (item.path !== '/worker' && item.path !== '/supervisor' && location.pathname.startsWith(item.path + '/'))
-            );
+      {/* Navigation items — unified for all roles */}
+      <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto scrollbar-thin" aria-label="Main navigation">
+        {navGroups.map((group) => {
+          const isOpen = openGroups.has(group.label);
+          const hasActiveChild = group.items.some(
+            (item) => location.pathname === item.path || (item.path !== basePath && location.pathname.startsWith(item.path + '/'))
+          );
 
-            return (
-              <div key={group.label} className="space-y-0.5">
-                {/* Group header — collapsible toggle */}
-                {!sidebarCollapsed && (
-                  group.collapsible ? (
-                    <button
-                      onClick={() => toggleGroup(group.label)}
-                      className={cn(
-                        'flex w-full items-center justify-between px-3 pt-4 pb-1.5 text-[10px] font-black uppercase tracking-[0.24em] transition-colors rounded-lg',
-                        hasActiveChild ? 'text-emerald-400' : 'text-slate-500 hover:text-slate-300'
-                      )}
-                    >
-                      <span>{t(group.label)}</span>
-                      <ChevronDown
-                        size={12}
-                        className={cn(
-                          'transition-transform duration-200',
-                          isOpen ? 'rotate-180' : 'rotate-0'
-                        )}
-                      />
-                    </button>
-                  ) : (
-                    <p className="px-3 pt-4 pb-1 text-[10px] font-black uppercase tracking-[0.24em] text-slate-500">
-                      {t(group.label)}
-                    </p>
-                  )
-                )}
-
-                {/* Group items — shown if open, non-collapsible, or sidebar collapsed */}
-                {(isOpen || !group.collapsible || sidebarCollapsed) && (
-                  <div className={cn(
-                    'space-y-0.5 overflow-hidden transition-all duration-200',
-                    group.collapsible && !sidebarCollapsed ? 'ml-1 border-l border-slate-800/60 pl-2' : ''
-                  )}>
-                    {group.items.map((item) => (
-                      <NavLink
-                        key={item.path}
-                        to={item.path}
-                        end={item.path === '/worker' || item.path === '/supervisor'}
-                        className={({ isActive }) => cn(
-                          'flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-200 group',
-                          isActive
-                            ? 'bg-gradient-to-r from-emerald-500 via-green-500 to-sky-500 text-white shadow-lg shadow-emerald-900/25 font-medium'
-                            : 'text-slate-300/80 hover:bg-white/10 hover:text-white'
-                        )}
-                        title={sidebarCollapsed ? (t(item.name) || item.name) : undefined}
-                      >
-                        <item.icon size={20} className="flex-shrink-0" />
-                        {!sidebarCollapsed && (
-                          <span className="text-sm truncate">{t(item.name) || item.name}</span>
-                        )}
-                      </NavLink>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })
-        ) : (
-          (isOfficial ? officialNav : adminNav).map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              end={item.path === '/admin' || item.path === '/officials'}
-              className={({ isActive }) => cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-2xl transition-all duration-200 group',
-                isActive
-                  ? 'bg-gradient-to-r from-emerald-500 via-green-500 to-sky-500 text-white shadow-lg shadow-emerald-900/25 font-medium'
-                  : 'text-slate-300/80 hover:bg-white/10 hover:text-white'
-              )}
-              title={sidebarCollapsed ? (t(item.name) || item.name) : undefined}
-            >
-              <item.icon size={20} className="flex-shrink-0" />
+          return (
+            <div key={group.label} className="space-y-0.5">
+              {/* Group header */}
               {!sidebarCollapsed && (
-                <span className="text-sm truncate">{t(item.name) || item.name}</span>
+                group.collapsible ? (
+                  <button
+                    onClick={() => toggleGroup(group.label)}
+                    className={cn(
+                      'flex w-full items-center justify-between px-3 pt-4 pb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors rounded-lg',
+                      hasActiveChild ? 'text-emerald-400' : 'text-slate-500 hover:text-slate-300'
+                    )}
+                  >
+                    <span>{t(group.label) || group.label}</span>
+                    <ChevronDown
+                      size={12}
+                      className={cn(
+                        'transition-transform duration-200',
+                        isOpen ? 'rotate-180' : 'rotate-0'
+                      )}
+                    />
+                  </button>
+                ) : (
+                  <p className="px-3 pt-4 pb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                    {t(group.label) || group.label}
+                  </p>
+                )
               )}
-            </NavLink>
-          ))
-        )}
+
+              {/* Group items */}
+              {(isOpen || !group.collapsible || sidebarCollapsed) && (
+                <div className={cn(
+                  'space-y-0.5 overflow-hidden transition-all duration-200',
+                  group.collapsible && !sidebarCollapsed ? 'ml-1 border-l border-slate-800/60 pl-2' : ''
+                )}>
+                  {group.items.map((item) => (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      end={item.path === basePath}
+                      className={({ isActive }) => cn(
+                        'flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group',
+                        isActive
+                          ? 'bg-white/15 text-white font-medium shadow-sm'
+                          : 'text-slate-400 hover:bg-white/8 hover:text-white'
+                      )}
+                      title={sidebarCollapsed ? (t(item.name) || item.name) : undefined}
+                      aria-current={location.pathname === item.path ? 'page' : undefined}
+                    >
+                      <item.icon size={18} className="shrink-0" />
+                      {!sidebarCollapsed && (
+                        <span className="text-sm truncate">{t(item.name) || item.name}</span>
+                      )}
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </nav>
 
       {/* Bottom section */}
-      <div className="px-3 py-3 border-t border-slate-800 space-y-1">
+      <div className="px-3 py-3 border-t border-slate-800/60 space-y-0.5">
         {!sidebarCollapsed && (
-          <button className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors text-sm">
-            <Settings size={20} />
+          <button className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-slate-400 hover:bg-white/8 hover:text-white transition-colors text-sm">
+            <Settings size={18} />
             {t('nav.settings')}
           </button>
         )}
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-slate-400 hover:bg-red-900/30 hover:text-red-400 transition-colors text-sm"
+          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-slate-400 hover:bg-red-900/30 hover:text-red-400 transition-colors text-sm"
           title={sidebarCollapsed ? t('nav.logout') : undefined}
         >
-          <LogOut size={20} />
+          <LogOut size={18} />
           {!sidebarCollapsed && t('nav.logout')}
         </button>
       </div>
@@ -359,7 +384,7 @@ export function Sidebar() {
       {sidebar}
       <aside className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-slate-950/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 text-white shadow-2xl shadow-slate-950/30 backdrop-blur-xl lg:hidden">
         {dockMoreOpen && (
-          <div className="absolute inset-x-2 bottom-[calc(100%+0.5rem)] max-h-[48vh] overflow-y-auto rounded-2xl border border-white/10 bg-slate-950/95 p-2 shadow-2xl shadow-slate-950/40 backdrop-blur-xl">
+          <div className="absolute inset-x-2 bottom-[calc(100%+0.5rem)] max-h-[48vh] overflow-y-auto rounded-xl border border-white/10 bg-slate-950/95 p-2 shadow-2xl backdrop-blur-xl scrollbar-thin">
             <div className="grid gap-3 sm:grid-cols-2">
               {overflowWorkerDockGroups.map((group) => {
                 const isOpen = openGroups.has(group.label);
@@ -373,7 +398,7 @@ export function Sidebar() {
                       <button
                         onClick={() => toggleGroup(group.label)}
                         className={cn(
-                          'flex w-full items-center justify-between rounded-lg px-3 pb-1.5 pt-2 text-left text-[10px] font-black uppercase tracking-[0.22em] transition-colors',
+                          'flex w-full items-center justify-between rounded-lg px-3 pb-1.5 pt-2 text-left text-[10px] font-bold uppercase tracking-[0.2em] transition-colors',
                           hasActiveChild ? 'text-emerald-400' : 'text-slate-500 hover:text-slate-300'
                         )}
                       >
@@ -387,7 +412,7 @@ export function Sidebar() {
                         />
                       </button>
                     ) : (
-                      <p className="px-3 pb-1 pt-2 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
+                      <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
                         {t(group.label)}
                       </p>
                     )}
@@ -404,13 +429,13 @@ export function Sidebar() {
                             end={item.path === '/worker'}
                             onClick={() => setDockMoreOpen(false)}
                             className={({ isActive }) => cn(
-                              'flex items-center gap-3 rounded-xl px-3 py-3 text-left transition-all duration-200',
+                              'flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all duration-200',
                               isActive
-                                ? 'bg-gradient-to-r from-emerald-500 via-green-500 to-sky-500 text-white shadow-lg shadow-emerald-900/25'
-                                : 'text-slate-300/80 hover:bg-white/10 hover:text-white'
+                                ? 'bg-white/15 text-white shadow-sm'
+                                : 'text-slate-400 hover:bg-white/8 hover:text-white'
                             )}
                           >
-                            <item.icon size={20} className="flex-shrink-0" />
+                            <item.icon size={18} className="shrink-0" />
                             <span className="min-w-0 truncate text-sm font-medium">{t(item.name) || item.name}</span>
                           </NavLink>
                         ))}
@@ -421,9 +446,9 @@ export function Sidebar() {
               })}
               <button
                 onClick={handleDockLogout}
-                className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300/80 transition-all duration-200 hover:bg-red-900/30 hover:text-red-300"
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-slate-400 transition-all duration-200 hover:bg-red-900/30 hover:text-red-300"
               >
-                <LogOut size={20} className="flex-shrink-0" />
+                <LogOut size={18} className="shrink-0" />
                 <span className="min-w-0 truncate text-sm font-medium">{t('nav.logout')}</span>
               </button>
             </div>
@@ -437,28 +462,28 @@ export function Sidebar() {
               end={item.path === '/worker'}
               onClick={() => setDockMoreOpen(false)}
               className={({ isActive }) => cn(
-                'flex h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-2 text-center transition-all duration-200',
+                'flex h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-2 text-center transition-all duration-200',
                 isActive
-                  ? 'bg-gradient-to-r from-emerald-500 via-green-500 to-sky-500 text-white shadow-lg shadow-emerald-900/25'
-                  : 'text-slate-300/80 hover:bg-white/10 hover:text-white'
+                  ? 'bg-white/15 text-white shadow-sm'
+                  : 'text-slate-400 hover:bg-white/8 hover:text-white'
               )}
             >
-              <item.icon size={20} className="flex-shrink-0" />
+              <item.icon size={18} className="shrink-0" />
               <span className="w-full truncate text-[10px] font-medium leading-tight">{t(item.name) || item.name}</span>
             </NavLink>
           ))}
           <button
             onClick={() => setDockMoreOpen((open) => !open)}
             className={cn(
-              'flex h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-2 text-center transition-all duration-200',
+              'flex h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-2 text-center transition-all duration-200',
               dockMoreOpen || hasActiveDockOverflow
-                ? 'bg-gradient-to-r from-emerald-500 via-green-500 to-sky-500 text-white shadow-lg shadow-emerald-900/25'
-                : 'text-slate-300/80 hover:bg-white/10 hover:text-white'
+                ? 'bg-white/15 text-white shadow-sm'
+                : 'text-slate-400 hover:bg-white/8 hover:text-white'
             )}
             aria-expanded={dockMoreOpen}
             aria-label="More"
           >
-            <MoreHorizontal size={20} />
+            <MoreHorizontal size={18} />
             <span className="w-full truncate text-[10px] font-medium leading-tight">More</span>
           </button>
         </nav>

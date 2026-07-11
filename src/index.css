@@ -1,75 +1,69 @@
 /* ============================================================
-   SMART ANGANWADI - GLOBAL STYLES
-   Government-friendly, clean design with dark mode support
+   SMART ANGANWADI — DESIGN SYSTEM
+   Enterprise-grade design tokens, utilities & base styles
    ============================================================ */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer components {
-  .supervisor-page-shell {
-    @apply space-y-8 pb-10 animate-fade-in;
-  }
-
-  .supervisor-hero {
-    @apply overflow-hidden rounded-[2rem] border shadow-sm;
-  }
-
-  .supervisor-hero-grid {
-    @apply flex flex-col gap-6 p-6 md:p-8 lg:flex-row lg:items-start lg:justify-between;
-  }
-
-  .supervisor-toolbar {
-    @apply flex flex-col gap-3 sm:flex-row sm:items-center;
-  }
-
-  .supervisor-select {
-    @apply min-w-[200px] rounded-2xl border border-border bg-white/85 px-4 py-3 text-sm font-medium text-foreground shadow-sm backdrop-blur focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-slate-900/70;
-  }
-
-  .supervisor-export-button {
-    @apply flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-emerald-500/20 transition-colors hover:bg-emerald-600 whitespace-nowrap;
-  }
-
-  .supervisor-kpi-card {
-    @apply relative overflow-hidden rounded-[1.75rem] border p-6 shadow-sm;
-  }
-
-  .supervisor-panel {
-    @apply rounded-[1.75rem] border border-border bg-card p-6 shadow-sm;
-  }
-
-  .supervisor-panel-muted {
-    @apply rounded-[1.5rem] border border-border bg-muted/20 p-4;
-  }
-}
-
-/* ---- CSS Custom Properties (Light Mode) ---- */
+/* ─── DESIGN TOKENS (Light Mode) ──────────────────────────────── */
 @layer base {
   :root {
+    /* — Surface & Text — */
     --background: 210 20% 98%;
     --foreground: 222 47% 11%;
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    --primary: 142 71% 45%; /* Soft Green #22c55e */
+
+    /* — Brand — */
+    --primary: 142 71% 45%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96%;
     --secondary-foreground: 222 47% 11%;
+
+    /* — Muted & Accent — */
     --muted: 210 40% 96%;
     --muted-foreground: 215 16% 47%;
     --accent: 210 40% 96%;
     --accent-foreground: 222 47% 11%;
+
+    /* — Semantic — */
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
+    --success: 142 71% 45%;
+    --success-foreground: 210 40% 98%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 26 83% 14%;
+    --info: 199 89% 48%;
+    --info-foreground: 210 40% 98%;
+
+    /* — Chrome — */
     --border: 214 32% 91%;
     --input: 214 32% 91%;
     --ring: 142 71% 45%;
-    --radius: 1rem; /* rounded-2xl roughly */
+
+    /* — Radius Scale — */
+    --radius: 0.5rem;
+
+    /* — Chart Palette — */
+    --chart-1: 142 71% 45%;
+    --chart-2: 199 89% 48%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 262 83% 58%;
+    --chart-5: 0 84% 60%;
+
+    /* — Shadow Scale — */
+    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.03);
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.06), 0 4px 6px -4px rgb(0 0 0 / 0.04);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.07), 0 8px 10px -6px rgb(0 0 0 / 0.04);
   }
 
-  /* ---- Dark Mode ---- */
+  /* — Dark Mode — */
   .dark {
     --background: 222 47% 8%;
     --foreground: 210 40% 96%;
@@ -77,48 +71,125 @@
     --card-foreground: 210 40% 96%;
     --popover: 222 47% 11%;
     --popover-foreground: 210 40% 96%;
-    --popover-foreground: 210 40% 96%;
-    --primary: 142 71% 45%; /* Soft Green */
+
+    --primary: 142 71% 45%;
     --primary-foreground: 222 47% 11%;
+    --secondary: 217 33% 17%;
     --secondary-foreground: 210 40% 96%;
+
     --muted: 217 33% 17%;
     --muted-foreground: 215 20% 65%;
     --accent: 217 33% 17%;
     --accent-foreground: 210 40% 96%;
+
     --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 96%;
+    --success: 142 71% 45%;
+    --success-foreground: 222 47% 11%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 26 83% 14%;
+    --info: 199 89% 48%;
+    --info-foreground: 222 47% 11%;
+
     --border: 217 33% 20%;
     --input: 217 33% 20%;
     --ring: 213 27% 84%;
+
+    --chart-1: 142 71% 45%;
+    --chart-2: 199 89% 48%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 262 83% 58%;
+    --chart-5: 0 63% 51%;
+
+    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.15);
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.2), 0 1px 2px -1px rgb(0 0 0 / 0.15);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.25), 0 2px 4px -2px rgb(0 0 0 / 0.2);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.2);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.35), 0 8px 10px -6px rgb(0 0 0 / 0.2);
   }
 }
 
+/* ─── BASE RESETS ─────────────────────────────────────────────── */
 @layer base {
   * {
     @apply border-border;
   }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: ui-rounded, "SF Pro Rounded", "Nunito Sans", "Avenir Next", system-ui, sans-serif;
     background-image:
-      radial-gradient(circle at top left, rgba(34, 197, 94, 0.08), transparent 26%),
-      radial-gradient(circle at top right, rgba(56, 189, 248, 0.07), transparent 22%),
+      radial-gradient(circle at top left, rgba(34, 197, 94, 0.06), transparent 26%),
+      radial-gradient(circle at top right, rgba(56, 189, 248, 0.05), transparent 22%),
       linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,250,252,1));
     min-height: 100vh;
   }
+
   .dark body {
     background-image:
-      radial-gradient(circle at top left, rgba(34, 197, 94, 0.12), transparent 26%),
-      radial-gradient(circle at top right, rgba(56, 189, 248, 0.1), transparent 22%),
+      radial-gradient(circle at top left, rgba(34, 197, 94, 0.08), transparent 26%),
+      radial-gradient(circle at top right, rgba(56, 189, 248, 0.06), transparent 22%),
       linear-gradient(180deg, rgba(2,6,23,0.98), rgba(15,23,42,1));
   }
-  html {
-    scroll-behavior: smooth;
+
+  /* — Skip to content (a11y) — */
+  .skip-to-content {
+    @apply sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:text-sm focus:font-semibold focus:shadow-lg;
   }
 }
 
-/* ---- Custom Scrollbar ---- */
+/* ─── COMPONENT LAYER ─────────────────────────────────────────── */
+@layer components {
+  /* — Supervisor page shells — */
+  .supervisor-page-shell {
+    @apply space-y-6 pb-10 animate-fade-in;
+  }
+
+  .supervisor-hero {
+    @apply overflow-hidden rounded-xl border shadow-sm;
+  }
+
+  .supervisor-hero-grid {
+    @apply flex flex-col gap-6 p-6 md:p-6 lg:flex-row lg:items-start lg:justify-between;
+  }
+
+  .supervisor-toolbar {
+    @apply flex flex-col gap-3 sm:flex-row sm:items-center;
+  }
+
+  .supervisor-select {
+    @apply min-w-[200px] rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-ring;
+  }
+
+  .supervisor-export-button {
+    @apply flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 whitespace-nowrap;
+  }
+
+  .supervisor-kpi-card {
+    @apply relative overflow-hidden rounded-xl border p-5 shadow-sm;
+  }
+
+  .supervisor-panel {
+    @apply rounded-xl border border-border bg-card p-6 shadow-sm;
+  }
+
+  .supervisor-panel-muted {
+    @apply rounded-lg border border-border bg-muted/20 p-4;
+  }
+}
+
+/* ─── SCROLLBAR ───────────────────────────────────────────────── */
 @layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -134,91 +205,69 @@
   }
 }
 
-/* ---- Animations ---- */
+/* ─── KEYFRAME ANIMATIONS ─────────────────────────────────────── */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slideInRight {
-  from { opacity: 0; transform: translateX(20px); }
-  to { opacity: 1; transform: translateX(0); }
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes slideInLeft {
-  from { opacity: 0; transform: translateX(-20px); }
-  to { opacity: 1; transform: translateX(0); }
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 @keyframes pulse-glow {
   0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
-  50% { box-shadow: 0 0 0 8px rgba(59, 130, 246, 0); }
+  50%      { box-shadow: 0 0 0 6px rgba(59, 130, 246, 0); }
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
+  0%   { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
 
 @keyframes float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+  50%      { transform: translateY(-4px); }
 }
 
 @keyframes countUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.4s ease-out forwards;
-}
-
-.animate-fade-in-up {
-  animation: fadeInUp 0.5s ease-out forwards;
-}
-
-.animate-slide-in-right {
-  animation: slideInRight 0.4s ease-out forwards;
-}
-
-.animate-slide-in-left {
-  animation: slideInLeft 0.4s ease-out forwards;
-}
-
-.animate-scale-in {
-  animation: scaleIn 0.3s ease-out forwards;
-}
-
-.animate-pulse-glow {
-  animation: pulse-glow 2s infinite;
-}
+/* — Animation Utility Classes — */
+.animate-fade-in      { animation: fadeIn 0.35s ease-out forwards; }
+.animate-fade-in-up   { animation: fadeInUp 0.4s ease-out forwards; }
+.animate-slide-in-right { animation: slideInRight 0.35s ease-out forwards; }
+.animate-slide-in-left  { animation: slideInLeft 0.35s ease-out forwards; }
+.animate-scale-in     { animation: scaleIn 0.25s ease-out forwards; }
+.animate-pulse-glow   { animation: pulse-glow 2s infinite; }
+.animate-float        { animation: float 3s ease-in-out infinite; }
+.animate-count-up     { animation: countUp 0.5s ease-out forwards; }
 
 .animate-shimmer {
-  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
 
-.animate-float {
-  animation: float 3s ease-in-out infinite;
-}
-
-.animate-count-up {
-  animation: countUp 0.6s ease-out forwards;
-}
-
-/* ---- Staggered animations for lists ---- */
+/* — Staggered animation delays — */
 .stagger-1 { animation-delay: 0.05s; }
 .stagger-2 { animation-delay: 0.1s; }
 .stagger-3 { animation-delay: 0.15s; }
@@ -228,41 +277,41 @@
 .stagger-7 { animation-delay: 0.35s; }
 .stagger-8 { animation-delay: 0.4s; }
 
-/* ---- Glassmorphism ---- */
+/* ─── GLASSMORPHISM ───────────────────────────────────────────── */
 .glass {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .dark .glass {
-  background: rgba(30, 41, 59, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(30, 41, 59, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* ---- Card hover effects ---- */
+/* ─── INTERACTIVE UTILITIES ───────────────────────────────────── */
 .card-hover {
-  @apply transition-all duration-300 ease-out;
+  @apply transition-all duration-200 ease-out;
 }
 .card-hover:hover {
-  @apply shadow-lg -translate-y-0.5;
+  @apply shadow-md -translate-y-0.5;
 }
 
-/* ---- Loading skeleton ---- */
+/* ─── LOADING / SKELETON ──────────────────────────────────────── */
 .skeleton {
-  @apply bg-slate-200 dark:bg-slate-700 rounded-md;
+  @apply rounded-md;
   background: linear-gradient(
     90deg,
     hsl(var(--muted)) 25%,
-    hsl(var(--muted-foreground) / 0.1) 50%,
+    hsl(var(--muted-foreground) / 0.08) 50%,
     hsl(var(--muted)) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
 
-/* ---- Status colors for government indicators ---- */
+/* ─── STATUS INDICATORS ───────────────────────────────────────── */
 .status-good {
   @apply text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-400 dark:bg-emerald-950/50 dark:border-emerald-800;
 }
@@ -273,23 +322,38 @@
   @apply text-red-700 bg-red-50 border-red-200 dark:text-red-400 dark:bg-red-950/50 dark:border-red-800;
 }
 
-/* ---- Government-style badge ---- */
+/* ─── BADGE ───────────────────────────────────────────────────── */
 .govt-badge {
   @apply inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full border;
 }
 
-/* ---- Tooltip ---- */
+/* ─── TOOLTIP ─────────────────────────────────────────────────── */
 .tooltip-content {
-  @apply bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs py-1.5 px-3 rounded-lg shadow-lg;
+  @apply bg-foreground text-background text-xs py-1.5 px-3 rounded-lg shadow-lg;
 }
 
-/* ---- Page transition ---- */
+/* ─── PAGE TRANSITION ─────────────────────────────────────────── */
 .page-transition {
-  animation: fadeIn 0.35s ease-out;
+  animation: fadeIn 0.3s ease-out;
 }
 
-/* ---- Print styles ---- */
+/* ─── SIDEBAR BACKGROUND ──────────────────────────────────────── */
+.sidebar-bg {
+  background:
+    radial-gradient(circle at top, rgba(56, 189, 248, 0.12), transparent 30%),
+    linear-gradient(180deg, #0b1220 0%, #111827 42%, #0f172a 100%);
+}
+
+.dark .sidebar-bg {
+  background:
+    radial-gradient(circle at top, rgba(34, 197, 94, 0.1), transparent 30%),
+    linear-gradient(180deg, #020617 0%, #0f172a 42%, #020617 100%);
+}
+
+/* ─── PRINT STYLES ────────────────────────────────────────────── */
 @media print {
   .no-print { display: none !important; }
   body { background: white !important; }
+  aside { display: none !important; }
+  header { display: none !important; }
 }
